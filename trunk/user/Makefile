@@ -100,7 +100,6 @@ dir_y						+= coremark
 ifneq ($(CONFIG_WITHOUT_KERNEL),y)
 dir_$(CONFIG_FIRMWARE_INCLUDE_IPSET)		+= ipset
 endif
-dir_y						+= poptop
 dir_y						+= ebtables
 dir_y						+= iproute2
 dir_y						+= wireless_tools
@@ -127,7 +126,8 @@ dir_y						+= 802.1x
 dir_y						+= wpa_supplicant
 dir_y						+= pppd
 dir_y						+= pppoe
-dir_y                                           += pppoe-relay
+dir_y						+= pppoe-relay
+dir_y						+= poptop
 dir_y						+= xl2tpd
 dir_$(CONFIG_FIRMWARE_INCLUDE_RPL2TP)		+= rp-l2tp
 dir_y						+= lldt
@@ -168,9 +168,9 @@ dir_$(CONFIG_FIRMWARE_INCLUDE_SOCAT)		+= socat
 dir_$(CONFIG_FIRMWARE_INCLUDE_SRELAY)		+= srelay
 dir_$(CONFIG_FIRMWARE_INCLUDE_TUNSAFE)		+= tunsafe
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_WIREGUARD),y)
-dir_y += wireguard
-dir_y += wireguard-tools
-dir_y += wg-quick
+dir_y 						+= wireguard
+dir_y 						+= wireguard-tools
+dir_y						+= wg-quick
 endif
 dir_$(SAMBA_ENABLED)				+= samba36
 dir_$(SAMBA_ENABLED)				+= wsdd2
@@ -193,8 +193,8 @@ dir_$(CONFIG_FIRMWARE_INCLUDE_MENTOHUST)	+= mentohust
 dir_$(CONFIG_FIRMWARE_INCLUDE_SMARTDNS)		+= smartdns
 dir_$(CONFIG_FIRMWARE_INCLUDE_xTUN) 		+= xTun
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_WING),y)
-dir_y 			+= wing
-dir_y 			+= ipt2socks
+dir_y 						+= wing
+dir_y 						+= ipt2socks
 endif
 
 dir_$(CONFIG_FIRMWARE_INCLUDE_REDSOCKS)		+= redsocks
