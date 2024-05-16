@@ -64,6 +64,7 @@ sdns_white=$(nvram get sdns_white)
 sdns_black=$(nvram get sdns_black)
 sdns_coredump=$(nvram get sdns_coredump)
 
+smartdns_process=$(pidof smartdns | awk '{ print $1 }')
 IPS4="$(ifconfig br0 | grep "inet addr" | grep -v ":127" | grep "Bcast" | awk '{print $2}' | awk -F : '{print $2}')"
 IPS6="$(ifconfig br0 | grep "inet6 addr" | grep -v "fe80::" | grep -v "::1" | grep "Global" | awk '{print $3}')"
 dnsmasq_md5=$(md5sum  "$dnsmasq_Conf" | awk '{ print $1 }')
@@ -169,7 +170,7 @@ Get_sdns_conf () {
     elif [ "$sdns_force_aaaa_soa" -eq 1 ] ;then
         echo "force-AAAA-SOA yes" >> "$smartdns_tmp_Conf"
     fi
-    if [ "$sdns_dualstack_ip_allow_force_AAAA" -eq 1 ] && [ " $sdns_cache" -gt 0 ] ;then
+    if [ "$sdns_dualstack_ip_allow_force_aaaa" -eq 1 ] && [ " $sdns_cache" -gt 0 ] ;then
         echo "dualstack-ip-allow-force-AAAA yes" >> "$smartdns_tmp_Conf"
     else
         echo "dualstack-ip-allow-force-AAAA no" >> "$smartdns_tmp_Conf"
@@ -313,9 +314,9 @@ Get_sdnse_conf () {
         ARGS_2="$ARGS_2-no-cache"
     fi
     if [ "$sdnse_ipv6_server" = "1" ] ; then
-        ADDR=""
-    else
         ADDR="[::]"
+    else
+        ADDR=""
     fi
     echo "bind" "$ADDR:$sdnse_port $ARGS_2" >> "$smartdns_tmp_Conf"
      if [ "$sdnse_tcp" = "1" ] ; then
@@ -542,7 +543,7 @@ Start_smartdns () {
         fi
         exit
     else
-        logger -t "SmartDNS" "进程已启动..."
+        logger -t "SmartDNS" "SmartDNS 进程已启动..."
     fi
 }
 

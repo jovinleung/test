@@ -30,7 +30,7 @@ $j(document).ready(function(){
 	init_itoggle('sdns_ipv6_server');
 	init_itoggle('sdnse_ipv6_server');
 	init_itoggle('sdns_ip_change');
-	init_itoggle('sdns_dualstack_ip_allow_force_AAAA');
+	init_itoggle('sdns_dualstack_ip_allow_force_aaaa');
 	init_itoggle('sdns_cache_persist');
 	init_itoggle('sdns_prefetch_domain');
 	init_itoggle('sdns_force_aaaa_soa');
@@ -371,6 +371,7 @@ function showMRULESList(){
                                         <tr> <th width="50%"><#SmartDNS6#></th>
                                             <td>
                                                 <input type="text" maxlength="64" class="input" size="15" name="sdns_cache" style="width: 200px" value="<% nvram_get_x("", "sdns_cache"); %>">
+                                                <div><span style="color:#888;"><#SmartDNS6_1#></span></div>
                                             </td>
                                         </tr>
                                         <tr> <th width="50%"><#SmartDNS7#></th>
@@ -395,16 +396,19 @@ function showMRULESList(){
 										<tr> <th width="50%"><#SmartDNS9#></th>
                                             <td>
                                                 <input type="text" maxlength="64" class="input" size="15" name="sdns_rr_ttl" style="width: 200px" value="<% nvram_get_x("", "sdns_rr_ttl"); %>">
+                                                <div><span style="color:#888;"><#SmartDNS9_1#></span></div>
                                             </td>
                                         </tr>
 										<tr> <th width="50%"><#SmartDNS10#></th>
                                             <td>
                                                 <input type="text" maxlength="64" class="input" size="15" name="sdns_rr_ttl_min" style="width: 200px" value="<% nvram_get_x("", "sdns_rr_ttl_min"); %>">
+                                                <div><span style="color:#888;"><#SmartDNS9_1#></span></div>
                                             </td>
                                         </tr>
 										<tr> <th width="50%"><#SmartDNS11#></th>
                                             <td>
                                                 <input type="text" maxlength="64" class="input" size="15" name="sdns_rr_ttl_max" style="width: 200px" value="<% nvram_get_x("", "sdns_rr_ttl_max"); %>">
+                                                <div><span style="color:#888;"><#SmartDNS9_1#></span></div>
                                             </td>
                                         </tr>
 										<tr> <th width="50%"><#SmartDNS12#></th>
@@ -502,7 +506,7 @@ function showMRULESList(){
 										<tr> <th width="50%"><#SmartDNS20#></th>
                                             <td>
                                                 <input type="text" maxlength="64" class="input" size="15" name="sdns_speed_mode" style="width: 200px" value="<% nvram_get_x("", "sdns_speed_mode"); %>">
-												<div><span style="color:#888;">例如: none 为禁止 ping,tcp:80,tcp:443</span></div>
+												<div><span style="color:#888;"><#SmartDNS20_1#></span></div>
                                             </td>
                                         </tr>
 										<tr> <th width="50%"><#SmartDNS21#></th>
@@ -518,7 +522,7 @@ function showMRULESList(){
                                                 </div>
                                             </td>
                                         </tr>
-										<tr> <th width="50%"><#SmartDNS2#></th>
+										<tr> <th width="50%"><#SmartDNS22#></th>
                                             <td>
                                                 <input type="text" maxlength="64" class="input" size="64" name="sdns_ip_change_time" style="width: 120px" value="<% nvram_get_x("", "sdns_ip_change_time"); %>"> 毫秒（0-100）
                                             </td>
@@ -526,13 +530,13 @@ function showMRULESList(){
 										<tr> <th width="50%"><#SmartDNS23#></th>
                                             <td>
                                                 <div class="main_itoggle">
-                                                <div id="sdns_dualstack_ip_allow_force_AAAA_on_of">
-                                                    <input type="checkbox" id="sdns_dualstack_ip_allow_force_AAAA_fake" <% nvram_match_x("", "sdns_dualstack_ip_allow_force_AAAA", "1", "value=1 checked"); %><% nvram_match_x("", "sdns_dualstack_ip_allow_force_AAAA", "0", "value=0"); %>>
+                                                <div id="sdns_dualstack_ip_allow_force_aaaa_on_of">
+                                                    <input type="checkbox" id="sdns_dualstack_ip_allow_force_aaaa_fake" <% nvram_match_x("", "sdns_dualstack_ip_allow_force_aaaa", "1", "value=1 checked"); %><% nvram_match_x("", "sdns_dualstack_ip_allow_force_aaaa", "0", "value=0"); %>>
                                                 </div>
                                                 </div>
                                                 <div style="position: absolute; margin-left: -10000px;">
-                                                    <input type="radio" value="1" name="sdns_dualstack_ip_allow_force_AAAA" id="sdns_dualstack_ip_allow_force_AAAA_1" <% nvram_match_x("", "sdns_dualstack_ip_allow_force_AAAA", "1", "checked"); %>><#checkbox_Yes#>
-                                                    <input type="radio" value="0" name="sdns_dualstack_ip_allow_force_AAAA" id="sdns_dualstack_ip_allow_force_AAAA_0" <% nvram_match_x("", "sdns_dualstack_ip_allow_force_AAAA", "0", "checked"); %>><#checkbox_No#>
+                                                    <input type="radio" value="1" name="sdns_dualstack_ip_allow_force_aaaa" id="sdns_dualstack_ip_allow_force_aaaa_1" <% nvram_match_x("", "sdns_dualstack_ip_allow_force_aaaa", "1", "checked"); %>><#checkbox_Yes#>
+                                                    <input type="radio" value="0" name="sdns_dualstack_ip_allow_force_aaaa" id="sdns_dualstack_ip_allow_force_aaaa_0" <% nvram_match_x("", "sdns_dualstack_ip_allow_force_aaaa", "0", "checked"); %>><#checkbox_No#>
                                                 </div>
                                             </td>
                                         </tr>
@@ -590,7 +594,7 @@ function showMRULESList(){
 										<tr> <th width="50%"><#SmartDNS29#></th>
                                             <td>
                                                 <input type="text" maxlength="64" class="input" size="15" name="sdns_exp_ttl_max" style="width: 200px" value="<% nvram_get_x("", "sdns_exp_ttl_max"); %>">
-												<div><span style="color:#888;"><#SmartDNS28_1#></span></div>
+												<div><span style="color:#888;"><#SmartDNS29_1#></span></div>
                                             </td>
                                         </tr>
 										<tr> <th width="50%"><#SmartDNS30#></th>
