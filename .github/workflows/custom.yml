@@ -31,7 +31,7 @@ on:
         - JCG-Q20
         - JCG-Q20-PB
         - JCG-Y2
-        - K2P
+        K2P
         - K2P-NANO
         - K2P-USB
         - MI-4
@@ -92,7 +92,7 @@ on:
         description: '1000Mhz=0x312 1100Mhz=0x362 1120Mhz=0x372 1200Mhz=0x3B2'
         type: choice
         options:
-        - '0x312'
+        '0x312'
         - '0x362'
         - '0x372'
         - '0x3B2'
@@ -100,12 +100,12 @@ on:
         description: 'String JSON list of plug-ins'
         required: true
         type: string
-        default: '{"ss":"y","v2ray":"n","xray":"y","trojan":"y","ssobfs":"y","smartdns":"y","vlmcsd":"y","ttyd":"n","iperf3":"n"}'
+        default: '{"ss":"n","v2ray":"n","xray":"y","trojan":"y","ssobfs":"y","smartdns":"y","vlmcsd":"y","ttyd":"n","iperf3":"n"}'
       customization:
         description: 'String JSON list of Customization'
         required: true
         type: string
-        default: '{"lanip":"192.168.2.1","signaccount":"admin","signpassword":"admin","wifi2gssid":"Padavan","wifi2gpsk":"1234567890","wifi5gssid":"Padavan-5G","wifi5gpsk":"1234567890"}'
+        default: '{"lanip":"192.168.1.1","signaccount":"admin","signpassword":"admin","wifi2gssid":"AA606","wifi2gpsk":"Tanyijieeddy","wifi5gssid":"AA606-5G","wifi5gpsk":"Tanyijieeddy"}'
       nanoversion:
         type: boolean
         description: 'Compile the nano version'
@@ -164,7 +164,7 @@ jobs:
           echo "wifi5gssid=${{fromJson(inputs.customization).wifi5gssid}}" >> $GITHUB_ENV
           echo "wifi5gpsk=${{fromJson(inputs.customization).wifi5gpsk}}" >> $GITHUB_ENV
           # plugins
-          echo "ss=${{fromJson(inputs.plugins).ss}}" >> $GITHUB_ENV
+          #echo "ss=${{fromJson(inputs.plugins).ss}}" >> $GITHUB_ENV
           echo "v2ray=${{fromJson(inputs.plugins).v2ray}}" >> $GITHUB_ENV
           echo "xray=${{fromJson(inputs.plugins).xray}}" >> $GITHUB_ENV
           echo "trojan=${{fromJson(inputs.plugins).trojan}}" >> $GITHUB_ENV
@@ -196,7 +196,7 @@ jobs:
           fi
           cp -f configs/templates/${{ matrix.target }}.config .config
           # include plugin
-          echo "CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS=${{env.ss}}" >> .config
+          #echo "CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS=${{env.ss}}" >> .config
           echo "CONFIG_FIRMWARE_INCLUDE_V2RAY=${{env.v2ray}}" >> .config
           echo "CONFIG_FIRMWARE_INCLUDE_XRAY=${{env.xray}}" >> .config
           echo "CONFIG_FIRMWARE_INCLUDE_TROJAN=${{env.trojan}}" >> .config
