@@ -1,40 +1,21 @@
-TOPDIR         = ${CURDIR}
-CT_DIR        := $(TOPDIR)/toolchain
-CT_PREFIX     := $(TOPDIR)/toolchain-mipsel
-CT_TARGET     := mipsel-linux-musl
-TOOLCHAIN_URL := https://github.com/TurBoTse/padavan/releases/download/toolchain/$(CT_TARGET).tar.xz
-
+# ====================
+#   Build Configuration
+# ====================
+TOPDIR         := $(CURDIR)
+CT_TARGET      := mipsel-linux-musl
+CT_PREFIX      := $(TOPDIR)/$(CT_TARGET)
 all: build
 
 build:
-	@echo "Building toolchain..."
-	@(cd $(CT_DIR); \
-		./bootstrap && \
-		./configure --enable-local && \
-		make && \
-		./ct-ng $(CT_TARGET) && \
-		./ct-ng build \
-	)
+	@echo "\033[1;32m✅ Build toolchain for $(CT_TARGET)\033[0m"
+	./bootstrap && \
+	./configure --enable-local && \
+	make && \
+	./ct-ng $(CT_TARGET) && \
+	./ct-ng build
 
 clean:
-	@if [ -d $(CT_DIR) ]; then \
-		cd $(CT_DIR); \
-		if [ -f ct-ng ]; then ./ct-ng distclean; fi; \
-		if [ -f Makefile ]; then make distclean; fi; \
-	fi
+	@echo "\033[1;36m♻️  Cleaning artifacts...\033[0m"
+	@if [ -f ct-ng ]; then ./ct-ng distclean; fi; \
+	@if [ -f Makefile ]; then make distclean; fi; \
 	@if [ -d $(CT_PREFIX) ]; then rm -rf $(CT_PREFIX); fi
-
-download:
-	@if [ ! -d $(CT_PREFIX) ]; then \
-		echo "Downloading toolchain..."; \
-		mkdir -p $(CT_PREFIX); \
-		curl -fSsLo- $(TOOLCHAIN_URL) | tar Jx -C $(CT_PREFIX); \
-	fi
-
-ifeq ($(CT_TARGET),mipsel-linux-musl)
-	@if [ ! -f $(CT_PREFIX)/$(CT_TARGET)/sysroot/usr/include/sys/queue.h ]; then \
-		echo "Installing sys/queue.h..."; \
-		curl -fSsL -o $(CT_PREFIX)/$(CT_TARGET)/sysroot/usr/include/sys/queue.h \
-			"https://sourceware.org/git/?p=glibc.git;a=blob_plain;f=misc/sys/queue.h;hb=HEAD" ; \
-	fi
-endif

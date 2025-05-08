@@ -233,7 +233,7 @@ romfs: $(patsubst %,%_romfs,$(dir_y))
 clean: $(patsubst %,%_clean,$(dir_y) $(dir_n) $(dir_))
 
 %_only:
-	@echo "\033[37;43m BUILD \033[0m\033[37;44m   $(@:_only=)   \033[0m"
+	@echo "\033[1;30;43m BUILD \033[0m\033[1;30;44m   $(@:_only=)   \033[0m"
 	$(MAKE) -C $(@:_only=)
 	@if [ ! -f $(DESTDIR)/.installed_$(@:_only=) ] ; then \
 		$(MAKE) -C $(@:_only=) install && \
@@ -241,10 +241,10 @@ clean: $(patsubst %,%_clean,$(dir_y) $(dir_n) $(dir_))
 	fi
 
 %_romfs:
-	@echo "\033[37;42m ROMFS \033[0m\033[37;44m   $(@:_romfs=)   \033[0m"
+	@echo "\033[1;30;42m ROMFS \033[0m\033[1;30;44m   $(@:_romfs=)   \033[0m"
 	$(MAKE) -C $(@:_romfs=) romfs
 
 %_clean:
-	@echo "\033[37;41m CLEAN \033[0m\033[37;44m   $(@:_clean=)   \033[0m"
+	@echo "\033[1;30;41m CLEAN \033[0m\033[1;30;44m   $(@:_clean=)   \033[0m"
 	$(MAKE) -C $(@:_clean=) clean
 	rm -f $(DESTDIR)/.installed_$(@:_clean=)
