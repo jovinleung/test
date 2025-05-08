@@ -1,0 +1,56 @@
+name: Build MIPSel musl Toolchain
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout this repository
+      uses: actions/checkout@main
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update && sudo apt-get install -y bison flex gperf help2man libtool-bin texinfo
+
+    - name: Clone and build Crosstool-NG
+      run: |
+        git clone https://github.com/crosstool-ng/crosstool-ng.git
+        cd crosstool-ng
+        ./bootstrap
+        ./configure --enable-local
+        make
+        sudo make install
+
+    - name: Prepare config and build toolchain
+      run: |
+        mkdir mipsel-musl && cd mipsel-musl
+        cat <<EOF > .config
+        CT_CONFIGURE_has_static_link=y
+        CT_PREFIX_DIR="\${HOME}/x-tools/mipsel-linux-musl"
+        CT_LOCAL_TARBALLS_DIR="\${HOME}/src"
+        CT_TARGET="mipsel-linux-musl"
+        CT_ARCH="mips"
+        CT_ARCH_BE=n
+        CT_ARCH_32=y
+        CT_ARCH_mips=y
+        CT_KERNEL="linux"
+        CT_KERNEL_LINUX_HEADERS_VERSION="4.4.198"
+        CT_BINUTILS_VERSION="2.36.1"
+        CT_CC="gcc"
+        CT_CC_GCC_SHOW_LINARO=y
+        CT_CC_GCC_VERSION="13.3.0"
+        CT_LIBC="musl"
+        CT_LIBC_VERSION="1.2.5"
+        CT_THREADS="none"
+        CT_CC_LANG_CXX=y
+        EOF
+        ct-ng build
+
+    - name: Upload built toolchain
+      uses: actions/upload-artifact@main
+      with:
+        name: mipsel-musl-toolchain
+        path: ~/x-tools/mipsel-linux-musl
