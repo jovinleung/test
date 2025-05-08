@@ -1,50 +1,61 @@
-name: build
+name: Build firmware
+
+permissions:
+  contents: write
+  actions: write
 
 on:
-  push:
-    branches:
-    - "*"
+#  push:
+#    branches:
+#      - "*"
   workflow_dispatch:
 
 jobs:
   build:
+    name: Build 
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        target: [K2P, K2P-USB]
-        toolchain: [mipsel-linux-musl]
+        target: [K2P]
+        toolchain: [mipsel-linux-musl, mipsel-linux-uclibc]
+    env:
+      ROOTDIR: ${{ github.workspace }}/trunk
+
     steps:
       - uses: actions/checkout@main
       - uses: hendrikmuhs/ccache-action@main
         with:
           key: ${{ matrix.target }}-${{ matrix.toolchain }}
+
       - uses: actions/setup-go@main
         with:
-          go-version: '1.23.5'
+          go-version: '1.24.x'
           check-latest: true
           cache: false
-      - name: Prepare environment
+
+      - name: Install Dependencies
         run: |
-          sudo apt-get update && sudo apt-get install -y unzip libtool-bin ccache curl cmake gperf gawk flex bison nano xxd \
-            fakeroot kmod cpio bc zip git python3-docutils gettext automake autopoint \
-            texinfo build-essential help2man pkg-config zlib1g-dev libgmp3-dev \
-            libmpc-dev libmpfr-dev libncurses5-dev libltdl-dev wget libc-dev-bin liblzma-dev
-          echo "ROOTDIR=${{ github.workspace }}/trunk" >> $GITHUB_ENV
-          echo "Compilation_time=$(TZ='Asia/Shanghai' date +%Y%m%d)" >> $GITHUB_ENV
-      - name: Start build firmware
+          sudo apt-get update && sudo apt-get install -y bison flex gperf help2man libtool-bin texinfo python3-docutils autopoint gettext ccache autoconf automake liblzma-dev libltdl-dev
+          echo "BUILD_DATE=$(TZ='Asia/Shanghai' date +%Y%m%d)" >> $GITHUB_ENV
+
+      - name: Build firmware
         run: |
-          make ${{ matrix.target }} TOOLCHAIN=${{ matrix.toolchain }}
+          make -s --no-print-directory "${{ matrix.target }}" TOOLCHAIN="${{ matrix.toolchain }}"
+
       - uses: actions/upload-artifact@main
         with:
-          name: ${{ matrix.target }}-${{ matrix.toolchain }}
-          path: trunk/images/*.trx
-      - uses: ncipollo/release-action@main
+          name: ${{ matrix.target }}-${{ matrix.toolchain }}-${{ env.BUILD_DATE }}
+          path: |
+            ${{ env.ROOTDIR }}/images/*.trx
+          retention-days: 7
+
+      - uses: softprops/action-gh-release@master
         with:
-          commit: main
-          tag: ${{ env.Compilation_time }}
-          artifacts: trunk/images/*.trx
-          allowUpdates: true
-          omitBodyDuringUpdate: true
+          tag_name: ${{ env.BUILD_DATE }}
+          name: "${{ env.BUILD_DATE }}"
+          files: ${{ env.ROOTDIR }}/images/*.trx
+
       - uses: Mattraks/delete-workflow-runs@main
         with:
           retain_days: 0

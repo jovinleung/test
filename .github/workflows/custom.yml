@@ -1,6 +1,10 @@
-# Build TurBoTse's kernal4.4 Padavan
+# Build TurBoTse's Padavan 4.4 Kernel
 
-name: build custom
+name: Custom Build
+
+permissions:
+  contents: write
+  actions: write
 
 on:
   workflow_dispatch:
@@ -72,177 +76,228 @@ on:
         required: true
         type: choice
         options:
-        - mipsel-linux-musl
-        - mipsel-linux-uclibc
-        default: mipsel-linux-musl
-      toolchaingcc:
-        description: 'Select the toolchain gcc version'
-        required: true
-        type: choice
-        options:
-        - mipsel-linux-musl
-        - mipsel-linux-musl-gcc7
-        - mipsel-linux-musl-gcc10
-        - mipsel-linux-uclibc
-        - mipsel-linux-uclibc-gcc7
-        - mipsel-linux-uclibc-gcc10
-        default: mipsel-linux-musl
+          - mipsel-linux-musl
+          - mipsel-linux-uclibc
+        default: mipsel-linux-uclibc
       cpufreq:
-        description: 'CPU Frequency (MHz)'
+        description: 'Enable CPU Frequency overclock'
         type: boolean
         default: false
       mt7621_oc:
-        description: '1000Mhz=0x312 1100Mhz=0x362 1120Mhz=0x372 1200Mhz=0x3B2'
+        description: 'MT7621 Overclock setting'
         type: choice
         options:
-        - '0x312'
-        - '0x362'
-        - '0x372'
-        - '0x3B2'
+          - '0x312'
+          - '0x362'
+          - '0x372'
+          - '0x3B2'
       plugins:
-        description: 'String JSON list of plug-ins'
+        description: 'JSON list of plugins'
         required: true
         type: string
         default: '{"ss":"y","v2ray":"n","xray":"y","trojan":"y","ssobfs":"y","smartdns":"y","vlmcsd":"y","ttyd":"n","iperf3":"n"}'
       customization:
-        description: 'String JSON list of Customization'
+        description: 'JSON list of custom settings'
         required: true
         type: string
         default: '{"lanip":"192.168.2.1","signaccount":"admin","signpassword":"admin","wifi2gssid":"Padavan","wifi2gpsk":"1234567890","wifi5gssid":"Padavan-5G","wifi5gpsk":"1234567890"}'
       nanoversion:
+        description: 'Compile nano version'
         type: boolean
-        description: 'Compile the nano version'
-        default: false
+        default: true
       release:
+        description: 'Upload to release'
         type: boolean
-        description: 'Upload firmware to release'
         default: true
       oldworkflow:
+        description: 'Clean old workflows'
         type: boolean
-        description: 'Delete old workflow runs'
         default: true
+
 env:
   FIRMWARE_AUTHOR: TurBoTse
-  TOOLCHAIN_ROOT: toolchain/toolchain-mipsel
+  ROOTDIR: ${{ github.workspace }}/trunk
+  TOOLCHAIN_ROOT: ${{ github.workspace }}/toolchain/${{ inputs.toolchain }}
   TOOLCHAIN_URL: https://github.com/TurBoTse/padavan/releases/download/toolchain
+
 jobs:
   build:
+    name: Build (${{ inputs.target }}-${{ inputs.toolchain }})
     runs-on: ubuntu-latest
-    env:
-      target: ${{ matrix.target }}
-      toolchain: ${{ matrix.toolchain }}
-      toolchaingcc: ${{ matrix.toolchaingcc }}
-    strategy:
-      matrix:
-        include:
-          - target: ${{ inputs.target }}
-            toolchain: ${{ inputs.toolchain }}
-            toolchaingcc: ${{ inputs.toolchaingcc }}
+
     steps:
       - uses: actions/checkout@main
       - uses: hendrikmuhs/ccache-action@main
         with:
-          key: ${{ matrix.target }}-${{ matrix.toolchaingcc }}
+          key: ${{ inputs.target }}-${{ inputs.toolchain }}
+
       - uses: actions/setup-go@main
         with:
-          go-version: '1.23.5'
+          go-version: '1.24.x'
           check-latest: true
           cache: false
-      - name: Prepare environment
+
+      - name: Install Dependencies
         run: |
-          sudo apt-get update && sudo apt-get install -y unzip libtool-bin ccache curl cmake gperf gawk flex bison nano xxd \
-            fakeroot kmod cpio bc zip git python3-docutils gettext automake autopoint \
-            texinfo build-essential help2man pkg-config zlib1g-dev libgmp3-dev \
-            libmpc-dev libmpfr-dev libncurses5-dev libltdl-dev wget libc-dev-bin liblzma-dev
-          echo "TRUNK_DIR=${{ github.workspace }}/trunk" >> $GITHUB_ENV
-          echo "Compilation_time=$(TZ='Asia/Shanghai' date +%Y%m%d)" >> $GITHUB_ENV
+          sudo apt-get update && sudo apt-get install -y bison flex gperf help2man libtool-bin texinfo python3-docutils autopoint gettext ccache autoconf automake liblzma-dev libltdl-dev jq
+          echo "BUILD_DATE=$(TZ='Asia/Shanghai' date +%Y%m%d)" >> $GITHUB_ENV
+
       - name: Prepare toolchain
         run: |
-          mkdir -p ${{ github.workspace }}/$TOOLCHAIN_ROOT
-          curl -fSsLo- $TOOLCHAIN_URL/${{ matrix.toolchaingcc }}.tar.xz | tar Jxv -C ${{ github.workspace }}/$TOOLCHAIN_ROOT
-      - name: Parse the string JSON list
-        run: |
-          echo "lanip=${{fromJson(inputs.customization).lanip}}" >> $GITHUB_ENV
-          echo "signaccount=${{fromJson(inputs.customization).signaccount}}" >> $GITHUB_ENV
-          echo "signpassword=${{fromJson(inputs.customization).signpassword}}" >> $GITHUB_ENV
-          echo "wifi2gssid=${{fromJson(inputs.customization).wifi2gssid}}" >> $GITHUB_ENV
-          echo "wifi2gpsk=${{fromJson(inputs.customization).wifi2gpsk}}" >> $GITHUB_ENV
-          echo "wifi5gssid=${{fromJson(inputs.customization).wifi5gssid}}" >> $GITHUB_ENV
-          echo "wifi5gpsk=${{fromJson(inputs.customization).wifi5gpsk}}" >> $GITHUB_ENV
-          # plugins
-          echo "ss=${{fromJson(inputs.plugins).ss}}" >> $GITHUB_ENV
-          echo "v2ray=${{fromJson(inputs.plugins).v2ray}}" >> $GITHUB_ENV
-          echo "xray=${{fromJson(inputs.plugins).xray}}" >> $GITHUB_ENV
-          echo "trojan=${{fromJson(inputs.plugins).trojan}}" >> $GITHUB_ENV
-          echo "ssobfs=${{fromJson(inputs.plugins).ssobfs}}" >> $GITHUB_ENV
-          echo "smartdns=${{fromJson(inputs.plugins).smartdns}}" >> $GITHUB_ENV
-          echo "vlmcsd=${{fromJson(inputs.plugins).vlmcsd}}" >> $GITHUB_ENV
-          echo "ttyd=${{fromJson(inputs.plugins).ttyd}}" >> $GITHUB_ENV
-          echo "iperf3=${{fromJson(inputs.plugins).iperf3}}" >> $GITHUB_ENV
-      - name: Compile the nano version
-        if: ${{ github.event.inputs.nanoversion == 'true' }}
-        run: |
-          cd ${{ env.TRUNK_DIR }}/configs/templates
-          for M in ${{ matrix.target }}; do if [ -f $M.config ]; then
-            for MOD in ANTFS FAT EXFAT EXT2 EXT3 EXT4 XFS FUSE SWAP; do
-              sed -i "s/CONFIG_FIRMWARE_ENABLE_${MOD}=y/CONFIG_FIRMWARE_ENABLE_${MOD}=n/" $M.config; done
-            for MOD in UVC HID SERIAL AUDIO XFRM QOS IMQ IFB NFSD NFSC CIFS NTFS_3G LPRD U2EC TCPDUMP HDPARM PARTED SMBD WINS SMBD_SYSLOG FTPD RPL2TP EAP_PEAP HTTPS SFTP DROPBEAR_FAST_CODE OPENSSH OPENVPN SSWAN OPENSSL_EC OPENSSL_EXE XUPNPD MINIDLNA FIREFLY FFMPEG_NEW TRANSMISSION TRANSMISSION_WEB_CONTROL ARIA ARIA_WEB_CONTROL CURL SCUTCLIENT GDUT_DRCOM DOGCOM MINIEAP NJIT_CLIENT SOFTETHERVPN_SERVER SOFTETHERVPN_CLIENT SOFTETHERVPN_CMD VLMCSD TTYD LITE LRZSZ HTOP NANO IPERF3 DUMP1090 RTL_SDR MTR SOCAT SRELAY MENTOHUST FRPC FRPS REDSOCKS SHADOWSOCKS XRAY V2RAY TROJAN SSOBFS SINGBOX NAIVEPROXY ADBYBY DNSFORWARDER SMARTDNS ADGUARDHOME ZEROTIER ALIDDNS DDNSTO ALDRIVER SQM WIREGUARD; do
-              sed -i "s/CONFIG_FIRMWARE_INCLUDE_${MOD}=y/CONFIG_FIRMWARE_INCLUDE_${MOD}=n/" $M.config; done
-          fi; done
-      - name: Modify and customize
-        run: |
-          sed -i '/cp -f/d' ${{ github.workspace }}/Makefile
-          cd ${{ env.TRUNK_DIR }}
-          sh ./custom/scripts/setip.sh '${{ env.lanip }}' './user/shared/src/defaults.h' './user/www/dict/CN.dict'
-          sh ./custom/scripts/setaccount.sh '${{ env.signaccount }}' '${{ env.signpassword }}' './user/shared/src/defaults.h'
-          sh ./custom/scripts/setwifi.sh '${{ env.wifi2gssid }}' '${{ env.wifi2gpsk }}' '${{ env.wifi5gssid }}' '${{ env.wifi5gpsk }}' './user/shared/src/defaults.h'
-          if [ ! -f configs/templates/${{ matrix.target }}.config ]; then
-            echo "configs/templates/${{ matrix.target }}.config not found"
-          exit 0
+          if [ ! -d "${{ env.TOOLCHAIN_ROOT }}/bin" ]; then
+            mkdir -p "${{ env.TOOLCHAIN_ROOT }}"
+            echo "⏬ Downloading toolchain..."
+            curl -fL --progress-bar "${{ env.TOOLCHAIN_URL }}/${{ inputs.toolchain }}.tar.xz" | \
+              tar -xJ -C "${{ env.TOOLCHAIN_ROOT }}"
+            echo "✅ Toolchain is ready ${{ inputs.toolchain }}"
+          else
+            echo "ℹ️ Toolchain already exists, skipping download. ${{ inputs.toolchain }}"
           fi
-          cp -f configs/templates/${{ matrix.target }}.config .config
-          # include plugin
-          echo "CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS=${{env.ss}}" >> .config
-          echo "CONFIG_FIRMWARE_INCLUDE_V2RAY=${{env.v2ray}}" >> .config
-          echo "CONFIG_FIRMWARE_INCLUDE_XRAY=${{env.xray}}" >> .config
-          echo "CONFIG_FIRMWARE_INCLUDE_TROJAN=${{env.trojan}}" >> .config
-          echo "CONFIG_FIRMWARE_INCLUDE_SSOBFS=${{env.ssobfs}}" >> .config
-          echo "CONFIG_FIRMWARE_INCLUDE_SMARTDNS=${{env.smartdns}}" >> .config
-          echo "CONFIG_FIRMWARE_INCLUDE_VLMCSD=${{env.vlmcsd}}" >> .config
-          echo "CONFIG_FIRMWARE_INCLUDE_TTYD=${{env.ttyd}}" >> .config
-          echo "CONFIG_FIRMWARE_INCLUDE_IPERF3=${{env.iperf3}}" >> .config
-          # cpufreq
-          if ${{ github.event.inputs.cpufreq == 'true' }}; then
+
+      - name: Parse configuration inputs
+        env:
+          CUSTOM_JSON: ${{ inputs.customization }}
+          PLUGINS_JSON: ${{ inputs.plugins }}
+        run: |
+          # Parse JSON inputs
+          declare -A CUSTOM=()
+          while IFS="=" read -r key value; do
+            CUSTOM["$key"]="$value"
+          done < <(jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|.[]' <<< "$CUSTOM_JSON")
+
+          declare -A PLUGINS=()
+          while IFS="=" read -r key value; do
+            PLUGINS["$key"]="$value"
+          done < <(jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|.[]' <<< "$PLUGINS_JSON")
+
+          # Export environment variables
+          {
+            for key in "${!CUSTOM[@]}"; do
+              echo "${key^^}=${CUSTOM[$key]}"
+            done
+            for key in "${!PLUGINS[@]}"; do
+              echo "PLUGIN_${key^^}=${PLUGINS[$key]}"
+            done
+          } >> $GITHUB_ENV
+
+      - name: Configure nano version
+        if: ${{ inputs.nanoversion }}
+        run: |
+          cd "${{ env.ROOTDIR }}/configs/templates"
+          config_file="${{ inputs.target }}.config"
+          [ -f "$config_file" ] || { echo "::error::Missing config file: $config_file"; exit 1; }
+
+          # Disable filesystems
+          for fs in ANTFS FAT EXFAT EXT2 EXT3 EXT4 XFS FUSE SWAP; do
+            sed -i "s/CONFIG_FIRMWARE_ENABLE_${fs}=y/CONFIG_FIRMWARE_ENABLE_${fs}=n/" "$config_file"
+          done
+
+          # Disable modules
+          disable_modules=(
+            UVC HID SERIAL AUDIO XFRM QOS IMQ IFB NFSD NFSC CIFS NTFS_3G 
+            LPRD U2EC TCPDUMP HDPARM PARTED SMBD WINS SMBD_SYSLOG FTPD 
+            RPL2TP EAP_PEAP HTTPS SFTP DROPBEAR_FAST_CODE OPENSSH OPENVPN 
+            SSWAN OPENSSL_EC OPENSSL_EXE XUPNPD MINIDLNA FIREFLY FFMPEG_NEW 
+            TRANSMISSION TRANSMISSION_WEB_CONTROL ARIA ARIA_WEB_CONTROL CURL 
+            SCUTCLIENT GDUT_DRCOM DOGCOM MINIEAP NJIT_CLIENT SOFTETHERVPN_SERVER 
+            SOFTETHERVPN_CLIENT SOFTETHERVPN_CMD VLMCSD TTYD LITE LRZSZ HTOP 
+            NANO IPERF3 DUMP1090 RTL_SDR MTR SOCAT SRELAY MENTOHUST FRPC FRPS 
+            REDSOCKS SHADOWSOCKS XRAY V2RAY TROJAN SSOBFS SINGBOX NAIVEPROXY 
+            ADBYBY DNSFORWARDER SMARTDNS ADGUARDHOME ZEROTIER ALIDDNS DDNSTO 
+            ALDRIVER SQM WIREGUARD
+          )
+          for mod in "${disable_modules[@]}"; do
+            sed -i "s/CONFIG_FIRMWARE_INCLUDE_${mod}=y/CONFIG_FIRMWARE_INCLUDE_${mod}=n/" "$config_file"
+          done
+
+      - name: Apply configurations
+        run: |
+          cd "${{ env.ROOTDIR }}"
+
+          # Apply network settings
+          sh ./custom/scripts/setip.sh "$LANIP" \
+            "./user/shared/src/defaults.h" \
+            "./user/www/dict/CN.dict"
+
+          # Apply account settings
+          sh ./custom/scripts/setaccount.sh \
+            "$SIGNACCOUNT" \
+            "$SIGNPASSWORD" \
+            "./user/shared/src/defaults.h"
+
+          # Apply WiFi settings
+          sh ./custom/scripts/setwifi.sh \
+            "$WIFI2GSSID" \
+            "$WIFI2GPSK" \
+            "$WIFI5GSSID" \
+            "$WIFI5GPSK" \
+            "./user/shared/src/defaults.h"
+
+          # Apply plugin configurations
+          cp "configs/templates/${{ inputs.target }}.config" .config
+          for key in "${!PLUGIN_@}"; do
+            echo "CONFIG_FIRMWARE_INCLUDE_${key#PLUGIN_}=${!key}" >> .config
+          done
+
+          # CPU overclock
+          if ${{ inputs.cpufreq }}; then
             echo "CONFIG_FIRMWARE_INCLUDE_OC=y" >> .config
             echo "CONFIG_FIRMWARE_MT7621_OC=${{ inputs.mt7621_oc }}" >> .config
           fi
-      - name: Start build firmware
+
+      - name: Build firmware
         run: |
-          make ${{ matrix.target }} TOOLCHAIN=${{ matrix.toolchain }}
-          nano=""
-          if ${{ github.event.inputs.nanoversion == 'true' }}; then
-            nano="-nano"
-          fi
-          cpufreq=""
-          if ${{ github.event.inputs.cpufreq == 'true' }}; then
-            cpufreq="-cpufreq-${{ inputs.mt7621_oc }}"
-          fi
-          mkdir -p ${{ env.TRUNK_DIR }}/firmwares/
-          sudo mv ${{ env.TRUNK_DIR }}/images/*.trx ${{ env.TRUNK_DIR }}/firmwares/$FIRMWARE_AUTHOR-${{ matrix.target }}-4.4-${{ matrix.toolchaingcc }}${nano}${cpufreq}-${{ env.Compilation_time }}.trx
+          make "${{ inputs.target }}" TOOLCHAIN="${{ inputs.toolchain }}"
+
+          # Generate firmware name
+          firmware_parts=(
+            "${{ env.FIRMWARE_AUTHOR }}"
+            "${{ inputs.target }}"
+            "4.4"
+            "${{ inputs.toolchain }}"
+            ${{ inputs.nanoversion && 'nano' || '' }}
+            ${{ inputs.cpufreq && format('cpufreq-{0}', inputs.mt7621_oc) || '' }}
+            "${{ env.BUILD_DATE }}"
+          )
+          mkdir -p "${{ env.ROOTDIR }}/output/"
+          firmware_name=$(printf "%s\n" "${firmware_parts[@]}" | grep -v '^$' | tr '\n' '-' | sed 's/-$//')
+          firmware_file="${firmware_name}.trx"
+          for f in "${{ env.ROOTDIR }}"/images/*.trx; do
+            mv -v "$f" "${{ env.ROOTDIR }}/output/${firmware_file}"
+            break
+          done
+
+      - name: Print config.log on failure
+        if: failure()
+        run: |
+          echo "============================="
+          echo "💥 configure failed — config.log:"
+          echo "============================="
+          find . -name config.log -exec echo "--- {} ---" \; -exec cat {} \; || echo "No config.log found"
+
+      - name: Upload config.log as artifact
+        if: failure()
+        uses: actions/upload-artifact@main
+        with:
+          name: config-log
+          path: |
+            **/config.log
+
       - uses: actions/upload-artifact@main
         with:
-          name: ${{ matrix.target }}-${{ matrix.toolchaingcc }}
-          path: trunk/firmwares/*.trx
-      - uses: ncipollo/release-action@main
-        if: ${{ github.event.inputs.release == 'true' }}
+          name: ${{ inputs.target }}-${{ inputs.toolchain }}-${{ env.BUILD_DATE }}
+          path: ${{ env.ROOTDIR }}/output/*.trx
+          retention-days: 7
+
+      - uses: softprops/action-gh-release@master
+        if: ${{ inputs.release }}
         with:
-          commit: main
-          tag: ${{ env.Compilation_time }}
-          artifacts: trunk/firmwares/*.trx
-          allowUpdates: true
-          omitBodyDuringUpdate: true
+          tag_name: ${{ env.BUILD_DATE }}
+          name: "${{ env.BUILD_DATE }}"
+          files: ${{ env.ROOTDIR }}/output/*.trx
+
       - uses: Mattraks/delete-workflow-runs@main
-        if: ${{ github.event.inputs.oldworkflow == 'true' }}
+        if: ${{ inputs.oldworkflow }}
         with:
           retain_days: 0
           keep_minimum_runs: 1
