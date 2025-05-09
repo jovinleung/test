@@ -1,0 +1,54 @@
+name: Sync Crosstool-NG (with history)
+
+permissions:
+  contents: write
+  actions: write
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout this repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add or pull crosstool-ng subtree
+        run: |
+          git remote add crosstool-ng https://github.com/crosstool-ng/crosstool-ng.git || true
+          git fetch crosstool-ng master
+
+          if [ ! -d "toolchain" ]; then
+            echo "Subtree not found, adding..."
+            git subtree add --prefix=toolchain crosstool-ng master --squash
+          else
+            echo "Subtree exists, pulling..."
+            git subtree pull --prefix=toolchain crosstool-ng master --squash
+          fi
+
+      - name: Push if changes occurred
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          else
+            echo "No changes to push."
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: Mattraks/delete-workflow-runs@main
+        with:
+          retain_days: 0
+          keep_minimum_runs: 1
