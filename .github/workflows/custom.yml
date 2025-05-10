@@ -154,6 +154,16 @@ jobs:
             echo "ℹ️ Toolchain already exists, skipping download. ${{ inputs.toolchain }}"
           fi
 
+      - name: Validate JSON inputs
+        run: |
+          jq empty <<< '${{ inputs.customization }}' || { echo "::error::Invalid JSON in customization"; exit 1; }
+          jq empty <<< '${{ inputs.plugins }}' || { echo "::error::Invalid JSON in plugins"; exit 1; }
+
+      - name: Check config file exists
+        run: |
+          config_file="configs/templates/${{ inputs.target }}.config"
+          [ -f "$config_file" ] || { echo "::error::Missing config file: $config_file"; exit 1; }
+
       - name: Parse configuration inputs
         env:
           CUSTOM_JSON: ${{ inputs.customization }}
@@ -180,12 +190,13 @@ jobs:
             done
           } >> $GITHUB_ENV
 
+          chmod +x ./custom/scripts/*.sh
+
       - name: Configure nano version
-        if: ${{ inputs.nanoversion }}
+        if: inputs.nanoversion == true
         run: |
           cd "${{ env.ROOTDIR }}/configs/templates"
           config_file="${{ inputs.target }}.config"
-          [ -f "$config_file" ] || { echo "::error::Missing config file: $config_file"; exit 1; }
 
           # Disable filesystems
           for fs in ANTFS FAT EXFAT EXT2 EXT3 EXT4 XFS FUSE SWAP; do
@@ -214,24 +225,9 @@ jobs:
         run: |
           cd "${{ env.ROOTDIR }}"
 
-          # Apply network settings
-          sh ./custom/scripts/setip.sh "$LANIP" \
-            "./user/shared/src/defaults.h" \
-            "./user/www/dict/CN.dict"
-
-          # Apply account settings
-          sh ./custom/scripts/setaccount.sh \
-            "$SIGNACCOUNT" \
-            "$SIGNPASSWORD" \
-            "./user/shared/src/defaults.h"
-
-          # Apply WiFi settings
-          sh ./custom/scripts/setwifi.sh \
-            "$WIFI2GSSID" \
-            "$WIFI2GPSK" \
-            "$WIFI5GSSID" \
-            "$WIFI5GPSK" \
-            "./user/shared/src/defaults.h"
+          bash ./custom/scripts/setip.sh "$LANIP" ./user/shared/src/defaults.h ./user/www/dict/CN.dict
+          bash ./custom/scripts/setaccount.sh "$SIGNACCOUNT" "$SIGNPASSWORD" ./user/shared/src/defaults.h
+          bash ./custom/scripts/setwifi.sh "$WIFI2GSSID" "$WIFI2GPSK" "$WIFI5GSSID" "$WIFI5GPSK" ./user/shared/src/defaults.h
 
           # Apply plugin configurations
           cp "configs/templates/${{ inputs.target }}.config" .config
@@ -240,14 +236,14 @@ jobs:
           done
 
           # CPU overclock
-          if ${{ inputs.cpufreq }}; then
+          if [[ "${{ inputs.cpufreq }}" == "true" ]]; then
             echo "CONFIG_FIRMWARE_INCLUDE_OC=y" >> .config
             echo "CONFIG_FIRMWARE_MT7621_OC=${{ inputs.mt7621_oc }}" >> .config
           fi
 
       - name: Build firmware
         run: |
-          make "${{ inputs.target }}" TOOLCHAIN="${{ inputs.toolchain }}"
+          make -j$(nproc) "${{ inputs.target }}" TOOLCHAIN="${{ inputs.toolchain }}"
 
           # Generate firmware name
           firmware_parts=(
