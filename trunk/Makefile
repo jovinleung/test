@@ -6,7 +6,7 @@
 # Copyright (c) 2001, Lineo
 #
 
-VERSIONPKG = 1.1
+VERSIONPKG ?= 1.1
 
 ############################################################################
 #
@@ -23,51 +23,50 @@ all: dep tools linux libc_only libs_only user_only romfs image
 endif
 
 ############################################################################
-#
 # Core configuration
-#
 
-ROOTDIR        = $(shell pwd)
-HOSTCC         = gcc
-ROMFSINST      = $(ROOTDIR)/tools/romfs-inst.sh
-TFTPDIR        = /tftpboot
-PATH          := $(if $(filter y,$(CONFIG_CCACHE)),$(CONFIG_CROSS_COMPILER_ROOT)/lib/ccache:,)$(CONFIG_CROSS_COMPILER_ROOT)/bin:$(PATH):$(ROOTDIR)/tools
+ROOTDIR          := $(shell pwd)
+HOSTCC           := gcc
+ROMFSINST        := $(ROOTDIR)/tools/romfs-inst.sh
+TFTPDIR          := /tftpboot
+PATH := $(if $(filter y,$(CONFIG_CCACHE)),$(CONFIG_CROSS_COMPILER_ROOT)/lib/ccache:)$\
+$(CONFIG_CROSS_COMPILER_ROOT)/bin:$(PATH):$(ROOTDIR)/tools
 
-VERSIONSTR     = $(CONFIG_VENDOR)/$(CONFIG_PRODUCT) Version $(VERSIONPKG)
+VERSIONSTR       := $(CONFIG_VENDOR)/$(CONFIG_PRODUCT) Version $(VERSIONPKG)
 
-LINUXDIR       = $(CONFIG_LINUXDIR)
-LINUXINCDIR    = $(ROOTDIR)/$(LINUXDIR)/include
-IMAGEDIR       = $(ROOTDIR)/images
-ROMFSDIR       = $(ROOTDIR)/romfs
-STAGEDIR       = $(ROOTDIR)/stage
-SCRIPTSDIR     = $(ROOTDIR)/config/scripts
-LINUX_CONFIG   = $(ROOTDIR)/$(LINUXDIR)/.config
-PROJECT_CONFIG = $(ROOTDIR)/.config
-SSTRIP_TOOL    = $(if $(CONFIG_FIRMWARE_PERFORM_SSTRIP),$(ROOTDIR)/tools/sstrip/sstrip)
-LZMA_TOOL      = $(ROOTDIR)/tools/lzma/lzma
-MKIMAGE_TOOL   = $(ROOTDIR)/tools/mkimage/mkimage
-MKSQUASHFS_TOOL= $(ROOTDIR)/tools/mksquashfs_xz/mksquashfs
-UNSQSHFS_TOOL  = $(ROOTDIR)/tools/mksquashfs_xz/unsquashfs
-MERGE_DIR      = $(ROOTDIR)/merge
-MERGE_ROOTFS   = $(MERGE_DIR)/$(CONFIG_FIRMWARE_PRODUCT_ID)/rootfs
+LINUXDIR         := $(CONFIG_LINUXDIR)
+LINUXINCDIR      := $(ROOTDIR)/$(LINUXDIR)/include
+IMAGEDIR         := $(ROOTDIR)/images
+ROMFSDIR         := $(ROOTDIR)/romfs
+STAGEDIR         := $(ROOTDIR)/stage
+SCRIPTSDIR       := $(ROOTDIR)/config/scripts
+LINUX_CONFIG     := $(ROOTDIR)/$(LINUXDIR)/.config
+PROJECT_CONFIG   := $(ROOTDIR)/.config
+SSTRIP_TOOL      := $(if $(CONFIG_FIRMWARE_PERFORM_SSTRIP),$(ROOTDIR)/tools/sstrip/sstrip)
+LZMA_TOOL        := $(ROOTDIR)/tools/lzma/lzma
+MKIMAGE_TOOL     := $(ROOTDIR)/tools/mkimage/mkimage
+MKSQUASHFS_TOOL  := $(ROOTDIR)/tools/mksquashfs_xz/mksquashfs
+UNSQSHFS_TOOL    := $(ROOTDIR)/tools/mksquashfs_xz/unsquashfs
+MERGE_DIR        := $(ROOTDIR)/merge
+MERGE_ROOTFS     := $(MERGE_DIR)/$(CONFIG_FIRMWARE_PRODUCT_ID)/rootfs
 
 # Parallel build configuration
-CPU_OVERLOAD   = 1
-HOST_NCPU      = $(shell if [ -f /proc/cpuinfo ]; then n=`grep -c processor /proc/cpuinfo`; if [ $$n -gt 1 ];then expr $$n \* ${CPU_OVERLOAD}; else echo $$n; fi; else echo 1; fi)
+CPU_OVERLOAD     := 1
+HOST_NCPU        := $(shell if [ -f /proc/cpuinfo ]; then n=`grep -c processor /proc/cpuinfo`; if [ $$n -gt 1 ];then expr $$n \* ${CPU_OVERLOAD}; else echo $$n; fi; else echo 1; fi)
 
-CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
+CONFIG_SHELL     := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 	  else if [ -x /bin/bash ]; then echo /bin/bash; \
 	  else echo sh; fi ; fi)
 
-FIRMWARE_KERNEL_VER="4.4"
-CONFIG_CROSS_COMPILER_PATH = $(CONFIG_CROSS_COMPILER_ROOT)/bin
-CONFIG_CMAKE_TOOLCHAIN_FILE = $(ROOTDIR)/vendors/cmake/cross-mipsel-linux.cmake
-KERNEL_HEADERS_PATH = $(realpath $(shell $(CONFIG_CROSS_COMPILER_ROOT)/bin/$(CC) -print-sysroot)/usr/include)
+FIRMWARE_KERNEL_VER := "4.4"
+CONFIG_CROSS_COMPILER_PATH ?= $(CONFIG_CROSS_COMPILER_ROOT)/bin
+CONFIG_CMAKE_TOOLCHAIN_FILE ?= $(ROOTDIR)/vendors/cmake/cross-mipsel-linux.cmake
+KERNEL_HEADERS_PATH := $(realpath $(shell $(CROSS_COMPILE)gcc -print-sysroot)/usr/include)
 
-ifeq (config.arch,$(wildcard config.arch))
+ifneq ("$(wildcard config.arch)","")
 ifeq ($(filter %_default, $(MAKECMDGOALS)),)
 include config.arch
-ARCH_CONFIG = $(ROOTDIR)/config.arch
+ARCH_CONFIG := $(ROOTDIR)/config.arch
 export ARCH_CONFIG
 endif
 endif
@@ -75,14 +74,14 @@ endif
 # Cross-compilation setup
 KERNEL_CROSS_COMPILE ?= $(CROSS_COMPILE)
 ifneq ($(SUBARCH),)
-MAKEARCH = $(MAKE) ARCH=$(SUBARCH) CROSS_COMPILE=$(CROSS_COMPILE)
-MAKEARCH_KERNEL = $(MAKE) ARCH=$(ARCH) SUBARCH=$(SUBARCH) CROSS_COMPILE=$(KERNEL_CROSS_COMPILE)
+MAKEARCH := $(MAKE) ARCH=$(SUBARCH) CROSS_COMPILE=$(CROSS_COMPILE)
+MAKEARCH_KERNEL := $(MAKE) ARCH=$(ARCH) SUBARCH=$(SUBARCH) CROSS_COMPILE=$(KERNEL_CROSS_COMPILE)
 else
-MAKEARCH = $(MAKE) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE)
-MAKEARCH_KERNEL = $(MAKE) ARCH=$(ARCH) CROSS_COMPILE=$(KERNEL_CROSS_COMPILE)
+MAKEARCH := $(MAKE) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE)
+MAKEARCH_KERNEL := $(MAKE) ARCH=$(ARCH) CROSS_COMPILE=$(KERNEL_CROSS_COMPILE)
 endif
 
-DIRS = libc libs user
+DIRS := libc libs user
 
 export VENDOR PRODUCT HOSTCC CONFIG_SHELL HOST_NCPU SSTRIP_TOOL LZMA_TOOL MKIMAGE_TOOL
 export PROJECT_CONFIG LINUX_CONFIG ROOTDIR LINUXDIR ROMFSDIR SCRIPTSDIR
@@ -98,7 +97,7 @@ export CONFIG_CMAKE_TOOLCHAIN_FILE MKSQUASHFS_TOOL UNSQSHFS_TOOL CONFIG_WITHOUT_
 .PHONY: modules
 modules:
 	@echo "\033[1;34m==> Building kernel modules...\033[0m"
-	@. $(LINUXDIR)/.config; if [ "$$CONFIG_MODULES" = "y" ]; then \
+	@if grep -q "^CONFIG_MODULES=y" $(LINUXDIR)/.config; then \
 		[ -d $(LINUXDIR)/modules ] || mkdir -p $(LINUXDIR)/modules; \
 		if ! $(MAKEARCH_KERNEL) -j$(HOST_NCPU) -C $(LINUXDIR) modules; then \
 			echo "\033[1;31mERROR: Module build failed!\033[0m"; exit 1; \
@@ -110,7 +109,7 @@ modules:
 .PHONY: modules_install
 modules_install:
 	@echo "\033[1;34m==> Installing kernel modules...\033[0m"
-	@. $(LINUXDIR)/.config; if [ "$$CONFIG_MODULES" = "y" ]; then \
+	@if grep -q "^CONFIG_MODULES=y" $(LINUXDIR)/.config; then \
 		[ -d $(ROMFSDIR)/lib/modules ] || mkdir -p $(ROMFSDIR)/lib/modules; \
 		if ! $(MAKEARCH_KERNEL) -C $(LINUXDIR) INSTALL_MOD_PATH=$(ROMFSDIR) DEPMOD=$(ROOTDIR)/tools/depmod.sh modules_install; then \
 			echo "\033[1;31mERROR: Module install failed!\033[0m"; exit 1; \
@@ -120,8 +119,10 @@ modules_install:
 .PHONY: modules_copy
 modules_copy:
 	@echo "\033[1;34m==> Copying merged modules...\033[0m"
-	[ -d $(ROMFSDIR)/lib/modules ] || mkdir -p $(ROMFSDIR)/lib/modules
-	@if ! cp -rfa $(MERGE_ROOTFS)/lib/modules $(ROMFSDIR)/lib; then \
+	@[ -d $(ROMFSDIR)/lib/modules ] || mkdir -p $(ROMFSDIR)/lib/modules
+	@if [ -d $(MERGE_ROOTFS)/lib/modules ]; then \
+		cp -rfa $(MERGE_ROOTFS)/lib/modules $(ROMFSDIR)/lib; \
+	else \
 		echo "\033[1;31mERROR: Module copy failed!\033[0m"; exit 1; \
 	fi
 
@@ -255,5 +256,3 @@ kernel_clean:
 	     $(MAKEARCH) -C $$d $$t;; \
 	*)   $(MAKEARCH) -C $(@:_clean=) clean;; \
 	esac
-
-############################################################################
