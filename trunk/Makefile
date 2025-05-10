@@ -52,7 +52,7 @@ MERGE_ROOTFS     := $(MERGE_DIR)/$(CONFIG_FIRMWARE_PRODUCT_ID)/rootfs
 
 # Parallel build configuration
 CPU_OVERLOAD     := 1
-HOST_NCPU        := $(shell if [ -f /proc/cpuinfo ]; then n=`grep -c processor /proc/cpuinfo`; if [ $$n -gt 1 ];then expr $$n \* ${CPU_OVERLOAD}; else echo $$n; fi; else echo 1; fi)
+HOST_NCPU        := $(shell nproc || echo 1)
 
 CONFIG_SHELL     := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 	  else if [ -x /bin/bash ]; then echo /bin/bash; \
