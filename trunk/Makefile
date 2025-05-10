@@ -25,12 +25,12 @@ endif
 ############################################################################
 # Core configuration
 
-ROOTDIR          := $(shell pwd)
+ROOTDIR          := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 HOSTCC           := gcc
 ROMFSINST        := $(ROOTDIR)/tools/romfs-inst.sh
 TFTPDIR          := /tftpboot
-PATH := $(if $(filter y,$(CONFIG_CCACHE)),$(CONFIG_CROSS_COMPILER_ROOT)/lib/ccache:)$\
-$(CONFIG_CROSS_COMPILER_ROOT)/bin:$(PATH):$(ROOTDIR)/tools
+PATH             := $(if $(filter y,$(CONFIG_CCACHE)),$(CONFIG_CROSS_COMPILER_ROOT)/lib/ccache:)$\
+$(CONFIG_CROSS_COMPILER_ROOT)/bin:$(ROOTDIR)/tools:$(PATH)
 
 VERSIONSTR       := $(CONFIG_VENDOR)/$(CONFIG_PRODUCT) Version $(VERSIONPKG)
 
@@ -51,8 +51,14 @@ MERGE_DIR        := $(ROOTDIR)/merge
 MERGE_ROOTFS     := $(MERGE_DIR)/$(CONFIG_FIRMWARE_PRODUCT_ID)/rootfs
 
 # Parallel build configuration
+HOST_NCPU        := $(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 1)
 CPU_OVERLOAD     := 1
-HOST_NCPU        := $(shell nproc || echo 1)
+MAKEFLAGS       += -j$(shell echo $$(( $(HOST_NCPU) + $(CPU_OVERLOAD) )) 
+
+# Standard commands
+MKDIR            := mkdir -p
+RM               := rm -rf
+CP               := cp -aP
 
 CONFIG_SHELL     := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 	  else if [ -x /bin/bash ]; then echo /bin/bash; \
@@ -98,8 +104,8 @@ export CONFIG_CMAKE_TOOLCHAIN_FILE MKSQUASHFS_TOOL UNSQSHFS_TOOL CONFIG_WITHOUT_
 modules:
 	@echo "\033[1;34m==> Building kernel modules...\033[0m"
 	@if grep -q "^CONFIG_MODULES=y" $(LINUXDIR)/.config; then \
-		[ -d $(LINUXDIR)/modules ] || mkdir -p $(LINUXDIR)/modules; \
-		if ! $(MAKEARCH_KERNEL) -j$(HOST_NCPU) -C $(LINUXDIR) modules; then \
+		$(MKDIR) $(LINUXDIR)/modules; \
+		if ! $(MAKEARCH_KERNEL) -C $(LINUXDIR) modules; then \
 			echo "\033[1;31mERROR: Module build failed!\033[0m"; exit 1; \
 		fi; \
 	else \
@@ -110,7 +116,7 @@ modules:
 modules_install:
 	@echo "\033[1;34m==> Installing kernel modules...\033[0m"
 	@if grep -q "^CONFIG_MODULES=y" $(LINUXDIR)/.config; then \
-		[ -d $(ROMFSDIR)/lib/modules ] || mkdir -p $(ROMFSDIR)/lib/modules; \
+		$(MKDIR) $(ROMFSDIR)/lib/modules; \
 		if ! $(MAKEARCH_KERNEL) -C $(LINUXDIR) INSTALL_MOD_PATH=$(ROMFSDIR) DEPMOD=$(ROOTDIR)/tools/depmod.sh modules_install; then \
 			echo "\033[1;31mERROR: Module install failed!\033[0m"; exit 1; \
 		fi; \
@@ -119,9 +125,9 @@ modules_install:
 .PHONY: modules_copy
 modules_copy:
 	@echo "\033[1;34m==> Copying merged modules...\033[0m"
-	@[ -d $(ROMFSDIR)/lib/modules ] || mkdir -p $(ROMFSDIR)/lib/modules
+	@$(MKDIR) $(ROMFSDIR)/lib/modules
 	@if [ -d $(MERGE_ROOTFS)/lib/modules ]; then \
-		cp -rfa $(MERGE_ROOTFS)/lib/modules $(ROMFSDIR)/lib; \
+		$(CP) $(MERGE_ROOTFS)/lib/modules/. $(ROMFSDIR)/lib/modules/; \
 	else \
 		echo "\033[1;31mERROR: Module copy failed!\033[0m"; exit 1; \
 	fi
@@ -130,7 +136,7 @@ modules_copy:
 bin_copy:
 	@echo "\033[1;34m==> Copying merged binaries...\033[0m"
 	@for f in `grep -v "^#" $(MERGE_DIR)/file_list`; do \
-		if ! cp -fP $(MERGE_ROOTFS)/$$f $(ROMFSDIR)/$$f; then \
+		if ! $(CP) $(MERGE_ROOTFS)/$$f $(ROMFSDIR)/$$f; then \
 			echo "\033[1;31mERROR: Failed to copy $$f\033[0m"; exit 1; \
 		fi; \
 	done
@@ -153,20 +159,20 @@ romfs.subdirs: $(patsubst %,%_romfs,vendors $(DIRS))
 .PHONY: romfs.post
 romfs.post:
 	@echo "\033[1;34m==> Post-processing ROMFS...\033[0m"
-	@-find $(ROMFSDIR) -name CVS -exec rm -rf {} +
+	@-find $(ROMFSDIR) -name CVS -exec $(RM) {} +
 	@$(ROOTDIR)/tools/strip-romfs.sh || (echo "\033[1;31mERROR: ROMFS stripping failed!\033[0m"; exit 1)
 	@$(MAKEARCH) -C vendors romfs.post
 
 .PHONY: image
 image:
 	@echo "\033[1;34m==> Generating firmware image...\033[0m"
-	@mkdir -p $(IMAGEDIR)
+	@$(MKDIR) $(IMAGEDIR)
 	@$(MAKEARCH) -C vendors image || (echo "\033[1;31mERROR: Image generation failed!\033[0m"; exit 1)
 
 .PHONY: linux
 linux:
 	@echo "\033[1;34m==> Building Linux kernel...\033[0m"
-	@$(MAKEARCH_KERNEL) -j$(HOST_NCPU) -C $(LINUXDIR) $(LINUXTARGET) || (echo "\033[1;31mERROR: Kernel build failed!\033[0m"; exit 1)
+	@$(MAKEARCH_KERNEL) -C $(LINUXDIR) $(LINUXTARGET) || (echo "\033[1;31mERROR: Kernel build failed!\033[0m"; exit 1)
 	@if [ -f $(LINUXDIR)/vmlinux ]; then \
 		ln -f $(LINUXDIR)/vmlinux $(LINUXDIR)/linux; \
 	fi
@@ -191,7 +197,7 @@ config:
 	@echo "\033[1;34m==> Configuring build...\033[0m"
 	@./configure || (echo "\033[1;31mERROR: Configuration failed!\033[0m"; exit 1)
 ifeq ($(CONFIG_CCACHE),y)
-	@mkdir -p $(CONFIG_CROSS_COMPILER_ROOT)/lib/ccache
+	@$(MKDIR) $(CONFIG_CROSS_COMPILER_ROOT)/lib/ccache
 	@for bin in gcc g++ cc c++; do \
 		ln -sf /usr/bin/ccache $(CONFIG_CROSS_COMPILER_ROOT)/lib/ccache/$$bin; \
 		ln -sf /usr/bin/ccache $(CONFIG_CROSS_COMPILER_ROOT)/lib/ccache/$(CROSS_COMPILE)$$bin; \
@@ -205,7 +211,7 @@ dep: config
 .PHONY: tools
 tools:
 	@echo "\033[1;34m==> Building tools...\033[0m"
-	@make -C tools || (echo "\033[1;31mERROR: Tools build failed!\033[0m"; exit 1)
+	@$(MAKE) -C tools || (echo "\033[1;31mERROR: Tools build failed!\033[0m"; exit 1)
 
 .PHONY: unpack_trx
 unpack_trx:
@@ -214,9 +220,9 @@ unpack_trx:
 
 clean: $(patsubst %,%_clean,tools kernel $(DIRS))
 	@echo "\033[1;33m==> Cleaning all artifacts...\033[0m"
-	@rm -rf $(STAGEDIR) $(ROMFSDIR) $(IMAGEDIR) $(MERGE_DIR)
-	@rm -rf $(LINUXDIR)/net/ipsec/alg/libaes $(LINUXDIR)/net/ipsec/alg/perlasm
-	@rm -f $(LINUXDIR)/arch/mips/ramdisk/*.gz
+	@$(RM) $(STAGEDIR) $(ROMFSDIR) $(IMAGEDIR) $(MERGE_DIR)
+	@$(RM) $(LINUXDIR)/net/ipsec/alg/libaes $(LINUXDIR)/net/ipsec/alg/perlasm
+	@$(RM) $(LINUXDIR)/arch/mips/ramdisk/*.gz
 	@echo "\033[1;32m==> Clean completed!\033[0m"
 
 .PHONY: tools_clean
@@ -233,26 +239,22 @@ kernel_clean:
 # Pattern Rules
 ############################################################################
 
-%_romfs:
+define BUILD_template
+.PHONY: $(1)_$(2)
+$(1)_$(2):
 	@case "$(@)" in \
 	*/*) d=`expr $(@) : '\([^/]*\)/.*'`; \
 	     t=`expr $(@) : '[^/]*/\(.*\)'`; \
 	     $(MAKEARCH) -C $$d $$t;; \
-	*)   $(MAKEARCH) -C $(@:_romfs=) romfs;; \
+	*)   $(MAKEARCH) -C $(1) $(2);; \
 	esac
+endef
 
-%_only:
-	@case "$(@)" in \
-	*/*) d=`expr $(@) : '\([^/]*\)/.*'`; \
-	     t=`expr $(@) : '[^/]*/\(.*\)'`; \
-	     $(MAKEARCH) -C $$d $$t;; \
-	*)   $(MAKEARCH) -C $(@:_only=);; \
-	esac
+$(foreach t,romfs only clean,$(eval $(call BUILD_template,vendors,$(t))))
 
-%_clean:
-	@case "$(@)" in \
-	*/*) d=`expr $(@) : '\([^/]*\)/.*'`; \
-	     t=`expr $(@) : '[^/]*/\(.*\)'`; \
-	     $(MAKEARCH) -C $$d $$t;; \
-	*)   $(MAKEARCH) -C $(@:_clean=) clean;; \
-	esac
+%_romfs: ; @:
+%_only: ; @:
+%_clean: ; @:
+
+.SECONDARY: $(DIRS) linux
+.NOTPARALLEL: config clean
