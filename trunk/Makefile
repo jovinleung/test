@@ -7,6 +7,7 @@
 #
 
 VERSIONPKG ?= 1.1
+CONFIG_WITHOUT_KERNEL ?= n
 
 ############################################################################
 #
@@ -53,7 +54,8 @@ MERGE_ROOTFS     := $(MERGE_DIR)/$(CONFIG_FIRMWARE_PRODUCT_ID)/rootfs
 # Parallel build configuration
 HOST_NCPU        := $(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 1)
 CPU_OVERLOAD     := 1
-MAKEFLAGS       += -j$(shell echo $$(( $(HOST_NCPU) + $(CPU_OVERLOAD) )) 
+PARALLEL_JOBS    := $(shell echo $$(( $(HOST_NCPU) + $(CPU_OVERLOAD) )))
+MAKEFLAGS        += -j$(PARALLEL_JOBS)
 
 # Standard commands
 MKDIR            := mkdir -p
@@ -159,7 +161,7 @@ romfs.subdirs: $(patsubst %,%_romfs,vendors $(DIRS))
 .PHONY: romfs.post
 romfs.post:
 	@echo "\033[1;34m==> Post-processing ROMFS...\033[0m"
-	@-find $(ROMFSDIR) -name CVS -exec $(RM) {} +
+	@find $(ROMFSDIR) -name CVS -exec $(RM) {} +
 	@$(ROOTDIR)/tools/strip-romfs.sh || (echo "\033[1;31mERROR: ROMFS stripping failed!\033[0m"; exit 1)
 	@$(MAKEARCH) -C vendors romfs.post
 
