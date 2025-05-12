@@ -1,11 +1,11 @@
 include $(ROOTDIR)/rules.mk
 
 PKG_NAME:=openssl
-PKG_VERSION:=3.0.15
+PKG_VERSION:=3.0.16
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=https://www.openssl.org/source/
-PKG_HASH:=23c666d0edf20f14249b3d8f0368acaee9ab585b09e1de82107c66e1f3ec9533
+PKG_HASH:=57e03c50feab5d31b152af2b764f10379aecd8ee92f16c985983ce4a99f7ef86
 
 include $(INCLUDE_DIR)/package.mk
 
