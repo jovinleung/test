@@ -1,0 +1,107 @@
+name: Build MIPSel musl Toolchain
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-toolchain:
+    runs-on: ubuntu-latest
+
+    env:
+      PREFIX_DIR: ${{ github.workspace }}/x-tools/mipsel-linux-musl
+      RELEASE_NAME: mipsel-toolchain-${{ github.run_number }}
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@main
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update && sudo apt-get install -y \
+          bison flex gperf help2man libtool-bin texinfo \
+          gawk build-essential
+
+    - name: Cache crosstool-ng sources
+      uses: actions/cache@main
+      with:
+        path: ~/.cache/ctng
+        key: ctng-cache-${{ runner.os }}-${{ github.sha }}
+
+    - name: Build crosstool-ng
+      run: |
+        cd toolchain
+        ./bootstrap
+        ./configure --prefix=$HOME/.local
+        make -j$(nproc)
+        make install
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+    - name: Prepare custom config
+      run: |
+        mkdir mipsel-musl && cd mipsel-musl
+        cat <<'EOF' > .config
+        CT_CONFIGURE_has_static_link=y
+        CT_MODULES=y
+        CT_LOCAL_TARBALLS_DIR="${HOME}/src"
+        CT_SAVE_TARBALLS=y
+        CT_PREFIX_DIR="${GITHUB_WORKSPACE}/x-tools/mipsel-linux-musl"
+        CT_WORK_DIR="${CT_TOP_DIR}/.build"
+        CT_RM_RF_PREFIX_DIR=y
+        CT_TARGET="mipsel-linux-musl"
+        CT_HOST="x86_64-build_pc-linux-gnu"
+        CT_TOOLCHAIN_TYPE="cross"
+        CT_ARCH="mips"
+        CT_ARCH_mips=y
+        CT_ARCH_32=y
+        CT_ARCH_BE=n
+        CT_ARCH_FLOAT="soft"
+        CT_ARCH_FPU=""
+        CT_ARCH_ARCH="mips"
+        CT_KERNEL="linux"
+        CT_KERNEL_LINUX_HEADERS=y
+        CT_KERNEL_LINUX_HEADERS_VERSION="4.4.198"
+        CT_KERNEL_LINUX_HEADERS_USE_ARCH=y
+        CT_BINUTILS="binutils"
+        CT_BINUTILS_BINUTILS=y
+        CT_BINUTILS_VERSION="2.36.1"
+        CT_BINUTILS_LINKER_LD_GOLD=n
+        CT_CC="gcc"
+        CT_CC_CORE_PASS_2_NEEDED=y
+        CT_CC_CORE_PASS_2_STATIC=y
+        CT_CC_GCC_SHOW_LINARO=y
+        CT_CC_GCC_VERSION="13.3.0"
+        CT_CC_LANG_CXX=y
+        CT_CC_SUPPORT_CXX=y
+        CT_CC_SUPPORT_CXXSTATIC=y
+        CT_CC_SUPPORT_SHARED_LIBS=y
+        CT_LIBC="musl"
+        CT_LIBC_musl=y
+        CT_LIBC_VERSION="1.2.5"
+        CT_THREADS="none"
+        CT_LIBC_SUPPORT_THREADS_NONE=y
+        CT_TOOLCHAIN_ENABLE="binutils gcc libc"
+        CT_TOOLCHAIN_NAME="mipsel-linux-musl"
+        CT_STRIP_TARGET_TOOLCHAIN_EXECUTABLES=y
+        CT_ARCH_NO_MMU=n
+        CT_ARCH_MMU=y
+        EOF
+
+    - name: Build toolchain
+      run: |
+        cd mipsel-musl
+        ct-ng mipsel-linux-musl
+        ct-ng build
+
+    - name: Package toolchain
+      run: |
+        cd x-tools
+        tar -czf ../${RELEASE_NAME}.tar.gz mipsel-linux-musl
+
+    - name: Upload Release
+      uses: softprops/action-gh-release@master
+      with:
+        tag_name: ${{ env.RELEASE_NAME }}
+        name: ${{ env.RELEASE_NAME }}
+        files: ${{ env.RELEASE_NAME }}.tar.gz
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -135,9 +135,11 @@ int pseudo_override = FALSE;
 /* Time value over-ride options */
 unsigned int mkfs_time;
 int mkfs_time_opt = FALSE;
-unsigned int all_time;
-int all_time_opt = FALSE;
+unsigned int inode_time;
+int inode_time_opt = FALSE;
 int clamping = TRUE;
+unsigned int mkfs_time_latest = 0;
+int mkfs_time_inode = FALSE;
 
 /* Is max depth option in effect, and max depth to descend into directories */
 int max_depth_opt = FALSE;
@@ -361,7 +363,7 @@ int recover = TRUE;
 int force_single_threaded = FALSE;
 
 /* list of options that have an argument */
-char *option_table[] = { "comp", "b", "mkfs-time", "fstime", "all-time",
+char *option_table[] = { "comp", "b", "mkfs-time", "fstime", "inode-time",
 	"root-mode", "force-uid", "force-gid", "action", "log-action",
 	"true-action", "false-action", "action-file", "log-action-file",
 	"true-action-file", "false-action-file", "p", "pf", "sort",
@@ -372,16 +374,16 @@ char *option_table[] = { "comp", "b", "mkfs-time", "fstime", "all-time",
 	"xattrs-add", "default-mode", "default-uid", "default-gid",
 	"mem-percent", "-pd", "-pseudo-dir", "help-option", "ho", "help-section",
 	"hs", "info-file", "force-file-mode", "force-dir-mode",
-	"small-readers", "block-readers", "uid-gid-offset", NULL
+	"small-readers", "block-readers", "uid-gid-offset", "all-time", NULL
 };
 
-char *sqfstar_option_table[] = { "comp", "b", "mkfs-time", "fstime", "all-time",
-	"root-mode", "force-uid", "force-gid", "throttle", "limit",
-	"processors", "mem", "offset", "o", "root-time", "root-uid",
+char *sqfstar_option_table[] = { "comp", "b", "mkfs-time", "fstime",
+	"inode-time", "root-mode", "force-uid", "force-gid", "throttle",
+	"limit", "processors", "mem", "offset", "o", "root-time", "root-uid",
 	"root-gid", "xattrs-exclude", "xattrs-include", "xattrs-add", "p", "pf",
 	"default-mode", "default-uid", "default-gid", "mem-percent", "pd",
 	"pseudo-dir", "help-option", "ho", "help-section", "hs", "info-file",
-	"force-file-mode", "force-dir-mode", "uid-gid-offset", NULL
+	"force-file-mode", "force-dir-mode", "uid-gid-offset", "all-time", NULL
 };
 
 static char *read_from_disk(long long start, unsigned int avail_bytes, int buff);
@@ -1102,14 +1104,19 @@ static inline unsigned int get_parent_no(struct dir_info *dir)
 }
 
 	
-static inline time_t get_time(time_t time)
+static inline unsigned int get_time(time_t orig)
 {
-	if(all_time_opt) {
+	unsigned int time = orig;
+
+	if(inode_time_opt) {
 		if(clamping)
-			return time > all_time ? all_time : time;
+			time = time > inode_time ? inode_time : time;
 		else
-			return all_time;
+			time = inode_time;
 	}
+
+	if(mkfs_time_inode && mkfs_time_latest < time)
+		mkfs_time_latest = time;
 
 	return time;
 }
@@ -6148,7 +6155,7 @@ static void check_source_date_epoch()
 		 *
 		 * So refuse to continue if both are set.
 		 */
-		if(mkfs_time_opt || all_time_opt)
+		if(mkfs_time_opt || inode_time_opt)
 			BAD_ERROR("SOURCE_DATE_EPOCH and command line options "
 				"can't be used at the same time to set "
 				"timestamp(s)\n");
@@ -6158,8 +6165,8 @@ static void check_source_date_epoch()
 			EXIT_MKSQUASHFS();
 		}
 
-		all_time = mkfs_time = time;
-		all_time_opt = mkfs_time_opt = TRUE;
+		inode_time = mkfs_time = time;
+		inode_time_opt = mkfs_time_opt = TRUE;
 	}
 }
 
@@ -6581,17 +6588,27 @@ static int sqfstar(int argc, char *argv[])
 			readq = 4;
 		} else if(strcmp(argv[i], "-mkfs-time") == 0 ||
 				strcmp(argv[i], "-fstime") == 0) {
-			if((++i == dest_index) ||
-					(!parse_num_unsigned(argv[i], &mkfs_time) &&
-					!exec_date(argv[i], &mkfs_time)))
-				sqfstar_option_help(argv[i - 1], "sqfstar: %s missing or invalid time value\n", argv[i - 1]);
+			if(++i == dest_index)
+				sqfstar_option_help(argv[i - 1], "sqfstar: %s missing time value\n", argv[i - 1]);
+			else if(strcmp(argv[i], "inode") == 0)
+				mkfs_time_inode = TRUE;
+			else if(!parse_num_unsigned(argv[i], &mkfs_time) &&
+					!exec_date(argv[i], &mkfs_time))
+				sqfstar_option_help(argv[i - 1], "sqfstar: %s invalid time value\n", argv[i - 1]);
 			mkfs_time_opt = TRUE;
 		} else if(strcmp(argv[i], "-all-time") == 0) {
 			if((++i == dest_index) ||
-					(!parse_num_unsigned(argv[i], &all_time) &&
-					!exec_date(argv[i], &all_time)))
+					(!parse_num_unsigned(argv[i], &inode_time) &&
+					!exec_date(argv[i], &inode_time)))
 				sqfstar_option_help(argv[i - 1], "sqfstar: -all-time missing or invalid time value\n");
-			all_time_opt = TRUE;
+			inode_time_opt = TRUE;
+			clamping = FALSE;
+		} else if(strcmp(argv[i], "-inode-time") == 0) {
+			if((++i == dest_index) ||
+					(!parse_num_unsigned(argv[i], &inode_time) &&
+					!exec_date(argv[i], &inode_time)))
+				sqfstar_option_help(argv[i - 1], "sqfstar: -inode-time missing or invalid time value\n");
+			inode_time_opt = TRUE;
 			clamping = FALSE;
 		} else if(strcmp(argv[i], "-reproducible") == 0)
 			reproducible = TRUE;
@@ -7145,7 +7162,10 @@ static int sqfstar(int argc, char *argv[])
 	sBlk.flags = SQUASHFS_MKFLAGS(noI, noD, noF, noX, noId, no_fragments,
 		always_use_fragments, duplicate_checking, exportable,
 		no_xattrs, comp_opts);
-	sBlk.mkfs_time = mkfs_time_opt ? mkfs_time : time(NULL);
+	if(mkfs_time_opt)
+		sBlk.mkfs_time = mkfs_time_inode ? mkfs_time_latest : mkfs_time;
+	else
+		sBlk.mkfs_time = time(NULL);
 
 	disable_info();
 
@@ -7418,17 +7438,27 @@ int main(int argc, char *argv[])
 			force_single_threaded = TRUE;
 		} else if(strcmp(argv[i], "-mkfs-time") == 0 ||
 				strcmp(argv[i], "-fstime") == 0) {
-			if((++i == argc) ||
-					(!parse_num_unsigned(argv[i], &mkfs_time) &&
-					!exec_date(argv[i], &mkfs_time)))
-				mksquashfs_option_help(argv[i - 1], "mksquashfs: %s missing or invalid time value\n", argv[i - 1]);
+			if(++i == argc)
+				mksquashfs_option_help(argv[i - 1], "mksquashfs: %s missing time value\n", argv[i - 1]);
+			else if(strcmp(argv[i], "inode") == 0)
+				mkfs_time_inode = TRUE;
+			else if(!parse_num_unsigned(argv[i], &mkfs_time) &&
+					!exec_date(argv[i], &mkfs_time))
+				mksquashfs_option_help(argv[i - 1], "mksquashfs: %s invalid time value\n", argv[i - 1]);
 			mkfs_time_opt = TRUE;
 		} else if(strcmp(argv[i], "-all-time") == 0) {
 			if((++i == argc) ||
-					(!parse_num_unsigned(argv[i], &all_time) &&
-					!exec_date(argv[i], &all_time)))
+					(!parse_num_unsigned(argv[i], &inode_time) &&
+					!exec_date(argv[i], &inode_time)))
 				mksquashfs_option_help(argv[i - 1], "mksquashfs: -all-time missing or invalid time value\n");
-			all_time_opt = TRUE;
+			inode_time_opt = TRUE;
+			clamping = FALSE;
+		} else if(strcmp(argv[i], "-inode-time") == 0) {
+			if((++i == argc) ||
+					(!parse_num_unsigned(argv[i], &inode_time) &&
+					!exec_date(argv[i], &inode_time)))
+				mksquashfs_option_help(argv[i - 1], "mksquashfs: -inode-time missing or invalid time value\n");
+			inode_time_opt = TRUE;
 			clamping = FALSE;
 		} else if(strcmp(argv[i], "-reproducible") == 0)
 			reproducible = TRUE;
@@ -8393,7 +8423,10 @@ int main(int argc, char *argv[])
 		sBlk.flags = SQUASHFS_MKFLAGS(noI, noD, noF, noX, noId, no_fragments,
 			always_use_fragments, duplicate_checking, exportable,
 			no_xattrs, comp_opts);
-		sBlk.mkfs_time = mkfs_time_opt ? mkfs_time : time(NULL);
+		if(mkfs_time_opt)
+			sBlk.mkfs_time = mkfs_time_inode ? mkfs_time_latest : mkfs_time;
+		else
+			sBlk.mkfs_time = time(NULL);
 
 		disable_info();
 

@@ -48,7 +48,7 @@ static char *mksquashfs_options[]={
 	"-no-sparse", "-no-tailends", "-tailends", "-no-fragments",
 	"-no-duplicates", "-no-hardlinks", "-keep-as-directory", "", "", "",
 	/* time options */
-	"-mkfs-time", "-all-time", "-root-time", "", "", "",
+	"-mkfs-time", "-inode-time", "-root-time", "", "", "",
 	/* permissions options */
 	"-all-root", "-root-mode", "-root-uid", "-root-gid", "-force-file-mode",
 	"-force-dir-mode", "-force-uid", "-force-gid", "-uid-gid-offset", "",
@@ -96,7 +96,7 @@ static char *sqfstar_options[]={
 	"-no-fragments", "-no-tailends", "-no-duplicates", "-no-hardlinks",
 	"-regex", "-ignore-zeros", "-ef", "", "", "",
 	/* time options */
-	"-mkfs-time", "-all-time", "-root-time", "", "", "",
+	"-mkfs-time", "-inode-time", "-root-time", "", "", "",
 	/* permissions options */
 	"-all-root", "-root-mode", "-root-uid", "-root-gid", "-force-file-mode",
 	"-force-dir-mode", "-force-uid", "-force-gid", "-uid-gid-offset",
@@ -241,17 +241,19 @@ static char *mksquashfs_text[]={
 		"contents of the directory\n",
 	"\n", "Filesystem time options:", "\n",
 	"-mkfs-time <time>\tset filesystem creation timestamp to <time>. "
+		"<time> can be \"inode\", which means use the latest inode "
+		"timestamp, an unsigned 32-bit int indicating seconds since "
+		"the epoch (1970-01-01) or a string value which is passed to "
+		"the \"date\" command to parse. Any string value which the "
+		"date command recognises can be used such as \"now\", \"last "
+		"week\", or \"Wed Feb 15 21:02:39 GMT 2023\"\n",
+	"-inode-time <time>\tset all file and directory timestamps to <time>. "
 		"<time> can be an unsigned 32-bit int indicating seconds since "
 		"the epoch (1970-01-01) or a string value which is passed to "
 		"the \"date\" command to parse. Any string value which the "
 		"date command recognises can be used such as \"now\", \"last "
-		"week\", or \"Wed Feb 15 21:02:39 GMT 2025\"\n",
-	"-all-time <time>\tset all file and directory timestamps to <time>. "
-		"<time> can be an unsigned 32-bit int indicating seconds since "
-		"the epoch (1970-01-01) or a string value which is passed to "
-		"the \"date\" command to parse. Any string value which the "
-		"date command recognises can be used such as \"now\", \"last "
-		"week\", or \"Wed Feb 15 21:02:39 GMT 2025\"\n",
+		"week\", or \"Wed Feb 15 21:02:39 GMT 2025\".  This option "
+		"sets and overrides the -root-time option\n",
 	"-root-time <time>\tset root directory time to <time>. <time> can be "
 		"an unsigned 32-bit int indicating seconds since the epoch "
 		"(1970-01-01) or a string value which is passed to the "
@@ -433,10 +435,12 @@ static char *mksquashfs_text[]={
 		"<section> to pager (or stdout if not a terminal).  If "
 		"<section> does not exactly match a section name, it is "
 		"treated as a regular expression, and all section names that "
-		"match are displayed.  Use \"sections\" or \"h\" as section "
-		"name to get a list of sections and their names\n",
+		"match are displayed.  Use \"list\" as section name to get a "
+		"list of sections and their names\n",
 	"-help-comp <comp>\tprint compressor options for compressor <comp>.  "
-		"Use <all> to get compressor options for all the compressors\n",
+		"Use \"list\" to get a list of available compressors, and "
+		"\"all\" to get the compressor options for all the "
+		"compressors\n",
 	"-help-all\t\tprint help information for all Mksquashfs options and "
 		"sections to pager (or stdout if not a terminal)\n",
 	"-Xhelp\t\t\tprint compressor options for selected compressor\n",
@@ -525,14 +529,12 @@ static char *mksquashfs_text[]={
 	"  1\tFatal errors occurred, Mksquashfs aborted and did not generate a "
 		"filesystem (or update if appending).\n",
 	"\n","See also (extra information elsewhere):", "\n",
-	"The README for the Squashfs-tools 4.6.1 release, describing the new "
+	"The README for the Squashfs-tools 4.7 release, describing the new "
 		"features can be read here https://github.com/plougher/"
-		"squashfs-tools/blob/master/README-4.6.1\n",
-	"\nThe Squashfs-tools USAGE guide can be read here https://github.com/"
-		"plougher/squashfs-tools/blob/master/USAGE-4.6\n",
-	"\nThe ACTIONS-README file describing how to use the new actions "
-		"feature can be read here https://github.com/plougher/"
-		"squashfs-tools/blob/master/ACTIONS-README\n",
+		"squashfs-tools/blob/master/Documentation/4.7/README\n",
+	"\nThe Squashfs-tools USAGE guides and other documentation can be read "
+		"here https://github.com/plougher/squashfs-tools/blob/master/"
+		"Documentation/4.7\n",
 	NULL
 };
 
@@ -574,17 +576,19 @@ static char *sqfstar_text[]={
 	"-ef <exclude-file>\tlist of exclude dirs/files.  One per line\n",
 	"\n", "Filesystem time options:", "\n",
 	"-mkfs-time <time>\tset filesystem creation timestamp to <time>. "
-		"<time> can be an unsigned 32-bit int indicating seconds since "
+		"<time> can be \"inode\", which means use the latest inode "
+		"timestamp, an unsigned 32-bit int indicating seconds since "
 		"the epoch (1970-01-01) or a string value which is passed to "
 		"the \"date\" command to parse. Any string value which the "
 		"date command recognises can be used such as \"now\", \"last "
 		"week\", or \"Wed Feb 15 21:02:39 GMT 2023\"\n",
-	"-all-time <time>\tset all file and directory timestamps to <time>. "
+	"-inode-time <time>\tset all file and directory timestamps to <time>. "
 		"<time> can be an unsigned 32-bit int indicating seconds since "
 		"the epoch (1970-01-01) or a string value which is passed to "
 		"the \"date\" command to parse. Any string value which the "
 		"date command recognises can be used such as \"now\", \"last "
-		"week\", or \"Wed Feb 15 21:02:39 GMT 2023\"\n",
+		"week\", or \"Wed Feb 15 21:02:39 GMT 2025\".  This option "
+		"sets and overrides the -root-time option\n",
 	"-root-time <time>\tset root directory time to " "<time>. <time> can "
 		"be an unsigned 32-bit int indicating seconds since the epoch "
 		"(1970-01-01) or a string value which is passed to the "
@@ -709,10 +713,12 @@ static char *sqfstar_text[]={
 		"<section> to pager (or stdout if not a terminal).  If "
 		"<section> does not exactly match a section name, it is "
 		"treated as a regular expression, and all section names that "
-		"match are displayed.  Use \"sections\" or \"h\" as section "
-		"name to get a list of sections and their names\n",
+		"match are displayed.  Use \"list\" as section name to get a "
+		"list of sections and their names\n",
 	"-help-comp <comp>\tprint compressor options for compressor <comp>.  "
-		"Use <all> to get compressor options for all the compressors\n",
+		"Use \"list\" to get a list of available compressors, and "
+		"\"all\" to get the compressor options for all the "
+		"compressors\n",
 	"-help-all\t\tprint help information for all Sqfstar options and "
 		"sections to pager (or stdout if not a terminal)\n",
 	"-Xhelp\t\t\tprint compressor options for selected compressor\n",
@@ -799,11 +805,12 @@ static char *sqfstar_text[]={
 	"  1\tFatal errors occurred, Sqfstar aborted and did not generate a "
 		"filesystem.\n",
 	"\n","See also (extra information elsewhere):", "\n",
-	"The README for the Squashfs-tools 4.6.1 release, describing the new "
+	"The README for the Squashfs-tools 4.7 release, describing the new "
 		"features can be read here https://github.com/plougher/"
-		"squashfs-tools/blob/master/README-4.6.1\n",
-	"\nThe Squashfs-tools USAGE guide can be read here https://github.com/"
-		"plougher/squashfs-tools/blob/master/USAGE-4.6\n",
+		"squashfs-tools/blob/master/Documentation/4.7/README\n",
+	"\nThe Squashfs-tools USAGE guides and other documentation can be read "
+		"here https://github.com/plougher/squashfs-tools/blob/master/"
+		"Documentation/4.7\n",
 	NULL
 };
 
@@ -921,7 +928,7 @@ static void print_section(char *prog_name, char *opt_name, char *sec_name, char 
 		pager = stdout;
 	}
 
-	if(strcmp(sec_name, "sections") == 0 || strcmp(sec_name, "h") == 0) {
+	if(strcmp(sec_name, "list") == 0) {
 		autowrap_printf(pager, cols, "\nUse following section name to print %s help information for that section\n\n", prog_name);
 		print_section_names(pager , "", cols, sections, options_text);
 		goto finish;
@@ -1165,7 +1172,7 @@ void print_compressor_options(char *comp_name, char *prog_name)
 	if(strcmp(comp_name, "ALL") == 0 || strcmp(comp_name, "<all>") == 0)
 		comp_name = "all";
 
-	if(strcmp(comp_name, "all") && !valid_compressor(comp_name)) {
+	if(strcmp(comp_name, "list") && strcmp(comp_name, "all") && !valid_compressor(comp_name)) {
 		cols = get_column_width();
 		autowrap_printf(stderr, cols, "%s: Compressor \"%s\" is not "
 			"supported!\n", prog_name, comp_name);
@@ -1183,7 +1190,10 @@ void print_compressor_options(char *comp_name, char *prog_name)
 		pager = stdout;
 	}
 
-	print_comp_options(pager, cols, comp_name, prog_name);
+	if(strcmp(comp_name, "list") == 0)
+		autowrap_print(pager, "\t" COMPRESSORS "\n", cols);
+	else
+		print_comp_options(pager, cols, comp_name, prog_name);
 
 	if(pager != stdout) {
 		fclose(pager);

@@ -47,7 +47,7 @@ XZ_SUPPORT = 1
 
 # Enable support for OpenWrt extended compression options by uncommenting
 # next line.  Do not do this unless you understand the implications.
-#XZ_EXTENDED_OPTIONS = 1
+XZ_EXTENDED_OPTIONS = 1
 
 
 ############ Building LZO support ##############
@@ -150,8 +150,8 @@ XATTR_DEFAULT = 1
 #
 # Uncomment next line to use a single reader thread
 #SINGLE_READER_THREAD = 1
-SMALL_READER_THREADS = 8
-BLOCK_READER_THREADS = 3
+SMALL_READER_THREADS = 4
+BLOCK_READER_THREADS = 4
 
 ###############################################
 #          Reproducible Image options         #
