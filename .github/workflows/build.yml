@@ -1,50 +1,80 @@
-name: build
+name: Build Firmware
 
 on:
   push:
     branches:
-    - "*"
+      - "*"
   workflow_dispatch:
 
 jobs:
   build:
+    name: Build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
     strategy:
+      fail-fast: false
       matrix:
-        target: [K2P, K2P-USB]
+        target: [K2P]
         toolchain: [mipsel-linux-musl]
+
     steps:
       - uses: actions/checkout@main
+        with:
+          fetch-depth: 1
       - uses: hendrikmuhs/ccache-action@main
         with:
           key: ${{ matrix.target }}-${{ matrix.toolchain }}
+
       - uses: actions/setup-go@main
         with:
-          go-version: '1.23.5'
+          go-version: '1.24.x'
           check-latest: true
           cache: false
-      - name: Prepare environment
+
+      - name: Install Build Dependencies
         run: |
-          sudo apt-get update && sudo apt-get install -y unzip libtool-bin ccache curl cmake gperf gawk flex bison nano xxd \
-            fakeroot kmod cpio bc zip git python3-docutils gettext automake autopoint \
-            texinfo build-essential help2man pkg-config zlib1g-dev libgmp3-dev \
-            libmpc-dev libmpfr-dev libncurses5-dev libltdl-dev wget libc-dev-bin liblzma-dev
-          echo "ROOTDIR=${{ github.workspace }}/trunk" >> $GITHUB_ENV
-          echo "Compilation_time=$(TZ='Asia/Shanghai' date +%Y%m%d)" >> $GITHUB_ENV
-      - name: Start build firmware
+          sudo apt-get update
+          sudo apt-get install -y \
+            bison flex gperf help2man libtool-bin texinfo python3-docutils autopoint gettext ccache \
+            autoconf automake liblzma-dev libltdl-dev liblzo2-dev
+          echo "BUILD_DATE=$(TZ='Asia/Shanghai' date +%Y%m%d)" >> $GITHUB_ENV
+          echo "CONFIGFILE=${{ github.workspace }}/trunk/configs/templates/${{ matrix.target }}.config" >> $GITHUB_ENV
+
+      - name: Apply Nano Optimization
+        run: |
+          for fs in ANTFS FAT EXFAT EXT2 EXT3 EXT4 XFS FUSE SWAP; do
+            sed -i "s/CONFIG_FIRMWARE_ENABLE_${fs}=y/CONFIG_FIRMWARE_ENABLE_${fs}=n/" "${{ env.CONFIGFILE }}"
+          done
+          modules=(UVC HID SERIAL AUDIO XFRM QOS IMQ IFB NFSD NFSC CIFS NTFS_3G LPRD U2EC TCPDUMP HDPARM PARTED 
+            SMBD WINS SMBD_SYSLOG FTPD RPL2TP EAP_PEAP HTTPS SFTP DROPBEAR DROPBEAR_FAST_CODE OPENSSH OPENVPN SSWAN 
+            OPENSSL_EC OPENSSL_EXE XUPNPD MINIDLNA FIREFLY FFMPEG_NEW TRANSMISSION TRANSMISSION_WEB_CONTROL ARIA 
+            ARIA_WEB_CONTROL CURL SCUTCLIENT GDUT_DRCOM DOGCOM MINIEAP NJIT_CLIENT SOFTETHERVPN_SERVER SOFTETHERVPN_CLIENT 
+            SOFTETHERVPN_CMD VLMCSD TTYD MSD_LITE LRZSZ HTOP NANO IPERF3 DUMP1090 RTL_SDR MTR SOCAT SRELAY MENTOHUST 
+            FRPC FRPS REDSOCKS SHADOWSOCKS XRAY V2RAY TROJAN SSOBFS SINGBOX NAIVEPROXY ADBYBY DNSFORWARDER SMARTDNS 
+            ADGUARDHOME ZEROTIER ALIDDNS DDNSTO ALDRIVER SQM WIREGUARD )
+          for m in "${modules[@]}"; do
+            sed -i "s/CONFIG_FIRMWARE_INCLUDE_${m}=y/CONFIG_FIRMWARE_INCLUDE_${m}=n/" "${{ env.CONFIGFILE }}"
+          done
+
+      - name: Build Firmware
         run: |
           make ${{ matrix.target }} TOOLCHAIN=${{ matrix.toolchain }}
+
       - uses: actions/upload-artifact@main
         with:
-          name: ${{ matrix.target }}-${{ matrix.toolchain }}
+          name: ${{ matrix.target }}-${{ matrix.toolchain }}-${{ env.BUILD_DATE }}
           path: trunk/images/*.trx
+
       - uses: ncipollo/release-action@main
         with:
-          commit: main
-          tag: ${{ env.Compilation_time }}
+          commit: ${{ github.sha }}
+          tag: ${{ env.BUILD_DATE }}
           artifacts: trunk/images/*.trx
           allowUpdates: true
           omitBodyDuringUpdate: true
+
       - uses: Mattraks/delete-workflow-runs@main
         with:
           retain_days: 0

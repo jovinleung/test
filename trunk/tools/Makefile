@@ -1,29 +1,32 @@
-# use host target
-CC        = gcc
-GCC       = gcc
-CXX       = g++
-AS        = as
-AR        = ar
-LD        = ld
-NM        = nm
-OBJCOPY   = objcopy
-RANLIB    = ranlib
-STRIP     = strip
-STRIPTOOL = $(STRIP)
+# ===============================
+#   Padavan Tools Makefile
+#   Author: TurBoTse
+# ===============================
 
+CC        = gcc
+CXX       = g++
 CFLAGS    = -Wall -O2
 LDFLAGS   =
 
+# Optional Linux kernel configuration
 -include $(LINUX_CONFIG)
 
+# Tools to build
+SUBDIRS   = lzma mkimage mksquashfs_xz sstrip
+
+# Default target
+.DEFAULT_GOAL := all
+
+.PHONY: all clean $(SUBDIRS)
+
 all:
-	make -C lzma
-	make -C mkimage
-	make -C mksquashfs_xz
-	make -C sstrip
+	@for dir in $(SUBDIRS); do \
+		echo "\033[1;30;43m BUILD \033[0m \033[1;30;44m $$dir \033[0m"; \
+		$(MAKE) -C $$dir -s || exit $$?; \
+	done
 
 clean:
-	make -C lzma clean
-	make -C mkimage clean
-	make -C mksquashfs_xz clean
-	make -C sstrip clean
+	@for dir in $(SUBDIRS); do \
+		echo "\033[1;30;42m CLEAN \033[0m \033[1;30;44m $$dir \033[0m"; \
+		$(MAKE) -C $$dir clean || true; \
+	done

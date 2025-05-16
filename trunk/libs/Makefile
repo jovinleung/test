@@ -87,9 +87,9 @@ LIBS_INCLUDE_LIBXML2=y
 endif
 
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_FIREFLY),y)
-LIBS_BUILD_SHARED=y
 LIBS_INCLUDE_LIBICONV=y
 LIBS_INCLUDE_MEDIA=y
+LIBS_BUILD_SHARED=y
 endif
 
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_MINIDLNA),y)
@@ -121,6 +121,7 @@ LIBS_INCLUDE_LIBUSB_1=y
 ifneq ($(filter y,$(CONFIG_FIRMWARE_INCLUDE_DUMP1090) $(CONFIG_FIRMWARE_INCLUDE_RTL_SDR)),)
 LIBS_INCLUDE_LIBRTLSDR=y
 endif
+
 ifeq ($(CONFIG_FIRMWARE_INCLUDE_U2EC),y)
 LIBS_INCLUDE_LIBUSB_0=y
 endif
@@ -233,18 +234,23 @@ romfs: $(patsubst %,%_romfs,$(dir_y))
 clean: $(patsubst %,%_clean,$(dir_y) $(dir_n) $(dir_))
 
 %_only:
-	@echo "\033[37;43m BUILD \033[0m\033[37;44m   $(@:_only=)   \033[0m"
+	@echo "\033[1;30;43m BUILD \033[0m \033[1;30;44m $(@:_only=) \033[0m"
 	$(MAKE) -C $(@:_only=)
-	@if [ ! -f $(DESTDIR)/.installed_$(@:_only=) ] ; then \
-		$(MAKE) -C $(@:_only=) install && \
-		touch $(DESTDIR)/.installed_$(@:_only=); \
+	@if [ ! -f $(DESTDIR)/.installed_$(@:_only=) ]; then \
+		echo "\033[1;30;42m $(@:_only=) \033[0m \033[1;30;44m Installed \033[0m"; \
+		if $(MAKE) -C $(@:_only=) install; then \
+			touch $(DESTDIR)/.installed_$(@:_only=); \
+		else \
+			echo "\033[1;30;41m $(@:_only=) \033[0m \033[1;30;41m install failed \033[0m"; \
+			exit 1; \
+		fi; \
 	fi
 
 %_romfs:
-	@echo "\033[37;42m ROMFS \033[0m\033[37;44m   $(@:_romfs=)   \033[0m"
+	@echo "\033[1;30;42m ROMFS \033[0m \033[1;30;44m $(@:_romfs=) \033[0m"
 	$(MAKE) -C $(@:_romfs=) romfs
 
 %_clean:
-	@echo "\033[37;41m CLEAN \033[0m\033[37;44m   $(@:_clean=)   \033[0m"
+	@echo "\033[1;30;42m CLEAN \033[0m \033[1;30;44m $(@:_clean=) \033[0m"
 	$(MAKE) -C $(@:_clean=) clean
 	rm -f $(DESTDIR)/.installed_$(@:_clean=)

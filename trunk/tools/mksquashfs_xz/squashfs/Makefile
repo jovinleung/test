@@ -30,7 +30,7 @@ ifndef CONFIG
 # Obviously at least one of the compression types must be built and selected
 # as the default compression type.
 #
-#GZIP_SUPPORT = 1
+GZIP_SUPPORT = 1
 
 ########### Building XZ support #############
 #
@@ -59,7 +59,7 @@ XZ_SUPPORT = 1
 # your distribution package manager.
 #
 # To skip building LZO support comment out the line below.
-#LZO_SUPPORT = 1
+LZO_SUPPORT = 1
 
 
 ########### Building LZ4 support #############
@@ -73,7 +73,7 @@ XZ_SUPPORT = 1
 # your distribution package manager.
 #
 # To skip building LZ4 support comment out the line below.
-#LZ4_SUPPORT = 1
+LZ4_SUPPORT = 1
 
 
 ########### Building ZSTD support ############
@@ -87,7 +87,7 @@ XZ_SUPPORT = 1
 # your distribution package manager.
 #
 # To skip building ZSTD support comment out the line below.
-#ZSTD_SUPPORT = 1
+ZSTD_SUPPORT = 1
 
 
 ######## Specifying default compression ########
@@ -150,18 +150,8 @@ XATTR_DEFAULT = 1
 #
 # Uncomment next line to use a single reader thread
 #SINGLE_READER_THREAD = 1
-SMALL_READER_THREADS = 8
-BLOCK_READER_THREADS = 3
-
-###############################################
-#          Reproducible Image options         #
-###############################################
-#
-# Select whether you wish reproducible builds by default.  If selected users
-# can disable reproducible builds using the not-reproducible option.
-# If not selected, users can enable reproducible builds using the
-# -reproducible option
-REPRODUCIBLE_DEFAULT = 1
+SMALL_READER_THREADS = 4
+BLOCK_READER_THREADS = 4
 
 ###############################################
 #               Manpage generation            #
@@ -229,16 +219,15 @@ INSTALL_MANPAGES_DIR = $(INSTALL_PREFIX)/man/man1
 #LZMA_SUPPORT = 1
 #LZMA_DIR = ../../../../LZMA/lzma465
 else
-GZIP_SUPPORT ?= 0
+GZIP_SUPPORT ?= 1
 XZ_SUPPORT ?= 1
-LZO_SUPPORT ?= 0
-LZ4_SUPPORT ?= 0
-ZSTD_SUPPORT ?= 0
+LZO_SUPPORT ?= 1
+LZ4_SUPPORT ?= 1
+ZSTD_SUPPORT ?= 1
 COMP_DEFAULT ?= xz
 XATTR_SUPPORT ?= 1
 XATTR_OS_SUPPORT ?= 1
 XATTR_DEFAULT ?= 1
-REPRODUCIBLE_DEFAULT ?= 1
 USE_PREBUILT_MANPAGES ?= n
 INSTALL_PREFIX ?= /usr/local
 INSTALL_DIR ?= $(INSTALL_PREFIX)/bin
@@ -263,7 +252,8 @@ INCLUDEDIR = -I.
 MKSQUASHFS_OBJS = mksquashfs.o read_fs.o action.o swap.o pseudo.o compressor.o \
 	sort.o progressbar.o info.o restore.o process_fragments.o \
 	caches-queues-lists.o reader.o tar.o date.o memory.o mksquashfs_help.o \
-	print_pager.o symbolic_mode.o thread.o nprocessors_compat.o limit.o
+	print_pager.o symbolic_mode.o thread.o nprocessors_compat.o limit.o \
+	virt_disk_pos.o
 
 UNSQUASHFS_OBJS = unsquashfs.o unsquash-1.o unsquash-2.o unsquash-3.o \
 	unsquash-4.o unsquash-123.o unsquash-34.o unsquash-1234.o unsquash-12.o \
@@ -381,10 +371,6 @@ else
 MKSQUASHFS_OBJS += xattr.o read_xattrs.o tar_xattr.o pseudo_xattr.o
 UNSQUASHFS_OBJS += read_xattrs.o unsquashfs_xattr.o
 endif
-endif
-
-ifeq ($(REPRODUCIBLE_DEFAULT),1)
-CFLAGS += -DREPRODUCIBLE_DEFAULT
 endif
 
 ifeq ($(DONT_USE_ATOMIC_EXCHANGE_N),1)
@@ -566,6 +552,8 @@ thread.o: thread.c thread.h
 
 nprocessors_compat.o: nprocessors_compat.c nprocessors_compat.h
 
+virt_disk_pos.o: virt_disk_pos.c virt_disk_pos.h
+
 unsquashfs_help.o: unsquashfs_help.c unsquashfs_help.h
 	$(CC) -c $(CFLAGS) $(CPPFLAGS) -DDECOMPRESSORS="\"$(subst @(default),,$(subst $(space),\n,$(COMPRESSORS)))\"" $<
 
@@ -610,4 +598,4 @@ install: mksquashfs unsquashfs
 	cp unsquashfs $(INSTALL_DIR)
 	ln -fs unsquashfs $(INSTALL_DIR)/sqfscat
 	ln -fs mksquashfs $(INSTALL_DIR)/sqfstar
-	../generate-manpages/install-manpages.sh $(shell pwd)/.. "$(INSTALL_MANPAGES_DIR)" "$(USE_PREBUILT_MANPAGES)"
+	generate-manpages/install-manpages.sh $(shell pwd)/.. "$(INSTALL_MANPAGES_DIR)" "$(USE_PREBUILT_MANPAGES)"
