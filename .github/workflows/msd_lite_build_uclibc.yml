@@ -1,0 +1,50 @@
+name: Build msd_lite
+
+on:
+  workflow_dispatch:  # 允许手动触发工作流
+
+jobs:
+  build:
+    runs-on: ubuntu-latest  # 使用最新的 Ubuntu
+
+    steps:
+    - name: Checkout msd_lite repository
+      uses: actions/checkout@main  # 使用稳定版本
+      with:
+        submodules: true  # 初始化子模块
+
+    - name: Set up toolchain
+      run: |
+        # 下载并解压 mipsel-linux-uclibc 工具链
+        curl -L https://github.com/TurBoTse/padavan/releases/download/toolchain/mipsel-linux-uclibc.tar.xz -o /tmp/toolchain.tar.xz
+        mkdir -p /tmp/toolchain && tar -xf /tmp/toolchain.tar.xz -C /tmp/toolchain
+
+    - name: Set environment variables
+      run: |
+        # 设置交叉编译环境
+        echo "PATH=/tmp/toolchain/bin:$PATH" >> $GITHUB_ENV
+        echo "CROSS_COMPILE=mipsel-linux-uclibc-" >> $GITHUB_ENV
+        echo "ARCH=mipsel" >> $GITHUB_ENV
+
+    - name: Clone and checkout msd_lite
+      run: |
+        # 克隆 msd_lite 仓库并检出指定版本
+        git clone --recursive https://github.com/rozhuk-im/msd_lite.git
+        cd msd_lite
+        git checkout 79a6c62c8fced6128a5e445ee110709b3b51bb78
+        git submodule update --init
+
+    - name: Build msd_lite
+      run: |
+        # 创建构建目录并执行 cmake 和 make
+        cd msd_lite
+        mkdir -p build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_VERBOSE_MAKEFILE=true ..
+        make -j8  # 并行编译，加速构建过程
+
+    - name: Upload build artifacts
+      if: success()
+      uses: actions/upload-artifact@main  # 使用稳定版本
+      with:
+        name: msd_lite-build
+        path: msd_lite/build/  # 上传构建产物路径

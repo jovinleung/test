@@ -8,3 +8,4 @@ all:
 clean:
 	make -C $(SRC_NAME)/CPP/7zip/Bundles/LzmaCon -f makefile.gcc clean
 	rm -f lzma
+	rm -rf $(SRC_NAME)/CPP/7zip/Bundles/LzmaCon/_o

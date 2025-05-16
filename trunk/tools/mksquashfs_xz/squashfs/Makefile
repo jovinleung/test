@@ -30,7 +30,7 @@ ifndef CONFIG
 # Obviously at least one of the compression types must be built and selected
 # as the default compression type.
 #
-#GZIP_SUPPORT = 1
+GZIP_SUPPORT = 1
 
 ########### Building XZ support #############
 #
@@ -47,7 +47,7 @@ XZ_SUPPORT = 1
 
 # Enable support for OpenWrt extended compression options by uncommenting
 # next line.  Do not do this unless you understand the implications.
-#XZ_EXTENDED_OPTIONS = 1
+XZ_EXTENDED_OPTIONS = 1
 
 
 ############ Building LZO support ##############
@@ -59,7 +59,7 @@ XZ_SUPPORT = 1
 # your distribution package manager.
 #
 # To skip building LZO support comment out the line below.
-#LZO_SUPPORT = 1
+LZO_SUPPORT = 1
 
 
 ########### Building LZ4 support #############
@@ -73,7 +73,7 @@ XZ_SUPPORT = 1
 # your distribution package manager.
 #
 # To skip building LZ4 support comment out the line below.
-#LZ4_SUPPORT = 1
+LZ4_SUPPORT = 1
 
 
 ########### Building ZSTD support ############
@@ -87,7 +87,7 @@ XZ_SUPPORT = 1
 # your distribution package manager.
 #
 # To skip building ZSTD support comment out the line below.
-#ZSTD_SUPPORT = 1
+ZSTD_SUPPORT = 1
 
 
 ######## Specifying default compression ########
@@ -150,8 +150,8 @@ XATTR_DEFAULT = 1
 #
 # Uncomment next line to use a single reader thread
 #SINGLE_READER_THREAD = 1
-SMALL_READER_THREADS = 8
-BLOCK_READER_THREADS = 3
+SMALL_READER_THREADS = 4
+BLOCK_READER_THREADS = 4
 
 ###############################################
 #          Reproducible Image options         #
@@ -229,11 +229,11 @@ INSTALL_MANPAGES_DIR = $(INSTALL_PREFIX)/man/man1
 #LZMA_SUPPORT = 1
 #LZMA_DIR = ../../../../LZMA/lzma465
 else
-GZIP_SUPPORT ?= 0
+GZIP_SUPPORT ?= 1
 XZ_SUPPORT ?= 1
-LZO_SUPPORT ?= 0
-LZ4_SUPPORT ?= 0
-ZSTD_SUPPORT ?= 0
+LZO_SUPPORT ?= 1
+LZ4_SUPPORT ?= 1
+ZSTD_SUPPORT ?= 1
 COMP_DEFAULT ?= xz
 XATTR_SUPPORT ?= 1
 XATTR_OS_SUPPORT ?= 1
@@ -610,4 +610,4 @@ install: mksquashfs unsquashfs
 	cp unsquashfs $(INSTALL_DIR)
 	ln -fs unsquashfs $(INSTALL_DIR)/sqfscat
 	ln -fs mksquashfs $(INSTALL_DIR)/sqfstar
-	../generate-manpages/install-manpages.sh $(shell pwd)/.. "$(INSTALL_MANPAGES_DIR)" "$(USE_PREBUILT_MANPAGES)"
+	generate-manpages/install-manpages.sh $(shell pwd)/.. "$(INSTALL_MANPAGES_DIR)" "$(USE_PREBUILT_MANPAGES)"

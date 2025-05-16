@@ -18,7 +18,7 @@ extract_test:
 	fi )
 
 clean:
-	if [ -f $(SRC_NAME)] ; then \
-		make -C $(SRC_NAME) clean ; \
+	if [ -f $(SRC_NAME)/Makefile ]; then \
+		make -C $(SRC_NAME) clean; \
 	fi
 	rm -f mksquashfs unsquashfs

@@ -1,35 +1,38 @@
-name: build toolchain
+name: Build Toolchain
 
 on:
   workflow_dispatch:
 
 jobs:
   build:
-    name: build
+    name: Build ${{ matrix.target }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     strategy:
+      fail-fast: false
       matrix:
-        target: [mipsel-linux-uclibc, mipsel-linux-musl, mipsel-linux-uclibc-gcc7, mipsel-linux-musl-gcc7, mipsel-linux-uclibc-gcc10, mipsel-linux-musl-gcc10]
+        target: [mipsel-linux-musl, mipsel-linux-uclibc]
+
     steps:
       - uses: actions/checkout@main
-      - name: Prepare environment
+
+      - name: Install Build Dependencies
         run: |
-          sudo apt-get update && sudo apt-get install -y unzip libtool-bin ccache curl cmake gperf gawk flex bison nano xxd \
-            fakeroot kmod cpio bc zip git python3-docutils gettext automake autopoint \
-            texinfo build-essential help2man pkg-config zlib1g-dev libgmp3-dev \
-            libmpc-dev libmpfr-dev libncurses5-dev libltdl-dev wget libc-dev-bin
-      - name: Build toolchain
+          sudo apt-get update && sudo apt-get install -y bison flex gperf help2man libtool-bin texinfo
+
+      - name: Build and Package
         run: |
-          make CT_TARGET=${CT_TARGET}
-          cd toolchain-mipsel
-          tar cJf ../${CT_TARGET}.tar.xz *
-        env:
-          CT_TARGET: ${{ matrix.target }}
+          make CT_TARGET=${{ matrix.target }}
+          cd "${{ matrix.target }}"
+          tar cJf "../${{ matrix.target }}.tar.xz" .
         working-directory: toolchain
+
       - uses: actions/upload-artifact@main
         with:
           name: ${{ matrix.target }}
           path: toolchain/${{ matrix.target }}.tar.xz
+
       - uses: ncipollo/release-action@main
         with:
           tag: toolchain
