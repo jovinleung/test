@@ -1,0 +1,33 @@
+name: 🔄 Auto Update Target List
+
+on:
+  push:
+    paths:
+      - 'configs/templates/*.config'
+  workflow_dispatch:
+
+jobs:
+  update-targets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@main
+
+      - name: Setup Python
+        uses: actions/setup-python@main
+        with:
+          python-version: '3.x'
+
+      - name: Update build.yml target list
+        run: python3 .github/scripts/update_target_list.py
+
+      - name: Commit & push if changed
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          if git diff --quiet; then
+            echo "✅ No changes."
+          else
+            git add .github/workflows/build.yml
+            git commit -m "🤖 Auto-update target list"
+            git push
+          fi
