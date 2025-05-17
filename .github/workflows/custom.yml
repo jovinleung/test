@@ -76,7 +76,7 @@ on:
           - mipsel-linux-uclibc
         default: mipsel-linux-musl
       cpufreq:
-        description: 'CPU Frequency (MHz)'
+        description: 'Enable CPU Overclocking'
         type: boolean
         default: false
       mt7621_oc:
@@ -133,7 +133,7 @@ jobs:
       - uses: actions/checkout@main
       - uses: hendrikmuhs/ccache-action@main
         with:
-          key: ${{ inputs.target }}-${{ inputs.toolchain }}
+          key: ${{ inputs.toolchain }}
 
       - uses: actions/setup-go@main
         with:
@@ -143,20 +143,21 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          sudo apt-get update && sudo apt-get install -y bison flex gperf help2man libtool-bin texinfo python3-docutils autopoint gettext ccache autoconf automake liblzma-dev libltdl-dev jq
+          sudo apt-get update
+          sudo apt-get install -y \
+            bison flex gperf help2man libtool-bin texinfo python3-docutils \
+            autopoint gettext ccache autoconf automake liblzma-dev libltdl-dev jq
           echo "BUILD_DATE=$(TZ='Asia/Shanghai' date +%Y%m%d)" >> $GITHUB_ENV
 
       - name: Prepare Toolchain
         run: |
-          echo "CONFIG_TOOLCHAIN=${{ inputs.toolchain }}" >> $GITHUB_ENV
-          echo "CONFIG_CROSS_COMPILER_ROOT=$(pwd)/toolchain/${{ inputs.toolchain }}" >> $GITHUB_ENV
-#          if [ ! -d "${{ env.TOOLCHAIN_ROOT }}/bin" ]; then
-#            mkdir -p "${{ env.TOOLCHAIN_ROOT }}"
-#            echo "⏬ Downloading toolchain..."
-#            curl -fL --progress-bar "${{ env.TOOLCHAIN_URL }}/${{ inputs.toolchain }}.tar.xz" | \
-#              tar -xJ -C "${{ env.TOOLCHAIN_ROOT }}"
-#            echo "✅ Toolchain is ready ${{ inputs.toolchain }}"
-#          fi
+          if [ ! -d "${{ env.TOOLCHAIN_ROOT }}/bin" ]; then
+            mkdir -p "${{ env.TOOLCHAIN_ROOT }}"
+            echo "⏬ Downloading toolchain..."
+            curl -fL --progress-bar "${{ env.TOOLCHAIN_URL }}/${{ inputs.toolchain }}.tar.xz" | \
+              tar -xJ -C "${{ env.TOOLCHAIN_ROOT }}"
+            echo "✅ Toolchain is ready ${{ inputs.toolchain }}"
+          fi
 
       - name: Validate JSON Inputs
         run: |
@@ -187,16 +188,12 @@ jobs:
 
       - name: Apply configurations
         run: |
-          cd "${{ env.TRUNKDIR }}"
+          cd ${{ env.TRUNKDIR }}
           [ -d ./custom/scripts ] && chmod +x ./custom/scripts/*.sh
           bash ./custom/scripts/setip.sh "$LANIP" ./user/shared/src/defaults.h ./user/www/dict/CN.dict
           bash ./custom/scripts/setaccount.sh "$SIGNACCOUNT" "$SIGNPASSWORD" ./user/shared/src/defaults.h
           bash ./custom/scripts/setwifi.sh "$WIFI2GSSID" "$WIFI2GPSK" "$WIFI5GSSID" "$WIFI5GPSK" ./user/shared/src/defaults.h
 
-          sed -i '/^CONFIG_FIRMWARE_INCLUDE_/d' "${{ env.CONFIG_FILE }}"
-          sed -i '/^CONFIG_FIRMWARE_ENABLE_/d' "${{ env.CONFIG_FILE }}"
-          sed -i '/^CONFIG_FIRMWARE_MT7621_OC/d' "${{ env.CONFIG_FILE }}"
-          sed -i '/^CONFIG_FIRMWARE_INCLUDE_OC/d' "${{ env.CONFIG_FILE }}"
           for key in $(env | grep '^PLUGIN_' | cut -d= -f1); do
             echo "CONFIG_FIRMWARE_INCLUDE_${key#PLUGIN_}=${!key}" >> "${{ env.CONFIG_FILE }}"
           done
@@ -209,7 +206,7 @@ jobs:
       - name: Configure Nano Version
         if: ${{ inputs.nanoversion }}
         run: |
-          cd "${{ env.TRUNKDIR }}"
+          cd ${{ env.TRUNKDIR }}
           for fs in ANTFS FAT EXFAT EXT2 EXT3 EXT4 XFS FUSE SWAP; do
             sed -i "s/CONFIG_FIRMWARE_ENABLE_${fs}=y/CONFIG_FIRMWARE_ENABLE_${fs}=n/" "${{ env.CONFIG_FILE }}"
           done
@@ -226,7 +223,7 @@ jobs:
 
       - name: Build Firmware
         run: |
-          make "${{ inputs.target }}" TOOLCHAIN="${{ inputs.toolchain }}"
+          make ${{ inputs.target }} TOOLCHAIN=${{ inputs.toolchain }}
           mkdir -p "$TRUNKDIR/output"
           base="${{ env.FIRMWARE_AUTHOR }}-${{ inputs.target }}-4.4-${{ inputs.toolchain }}"
           [ "${{ inputs.nanoversion }}" = "true" ] && base="$base-nano"
@@ -252,11 +249,19 @@ jobs:
           name: config-log
           path: '**/config.log'
 
+      - name: Show build ccache info
+        run: |
+          uname -a
+          gcc --version
+          echo "ccache stats:"
+          ccache -s || true
+          echo "Target: ${{ inputs.target }}"
+          echo "Toolchain: ${{ inputs.toolchain }}"
+
       - uses: actions/upload-artifact@main
         with:
           name: ${{ inputs.target }}-${{ inputs.toolchain }}-${{ env.BUILD_DATE }}
           path: ${{ env.TRUNKDIR }}/output/*.trx
-          retention-days: 7
 
       - uses: softprops/action-gh-release@master
         if: ${{ inputs.release }}
