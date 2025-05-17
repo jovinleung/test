@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@main
       - uses: hendrikmuhs/ccache-action@main
         with:
-          key: ccache-${{ matrix.toolchain }}
+          key: ${{ matrix.toolchain }}
 
       - uses: actions/setup-go@main
         with:
