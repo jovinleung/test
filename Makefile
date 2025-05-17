@@ -13,7 +13,7 @@ CONFIG_FILE     := $(SOURCE_DIR)/.config
 TOOLCHAIN       ?= mipsel-linux-musl
 TOOLCHAIN_ROOT  := $(TOPDIR)/toolchain
 TOOLCHAIN_PATH  := $(TOOLCHAIN_ROOT)/$(TOOLCHAIN)
-TOOLCHAIN_URL   := https://github.com/jovinleung/test/releases/download/toolchain/$(TOOLCHAIN).tar.xz
+TOOLCHAIN_URL   ?= https://github.com/jovinleung/test/releases/download/toolchain/$(TOOLCHAIN).tar.xz
 
 # Auto-discovered target products
 PRODUCTS        := $(notdir $(basename $(wildcard $(TEMPLATE_DIR)/*.config)))
