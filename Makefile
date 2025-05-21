@@ -28,7 +28,7 @@ all: build
 
 build:
 	@echo "\033[1;36m===> 🔎 Verifying toolchain availability...\033[0m"
-	@if [ ! -f "$(TOOLCHAIN_PATH)/.installed" ]; then \
+	@if [ ! -d "$(TOOLCHAIN_PATH)/bin" ]; then \
 		echo "\033[1;36m===> 📂 Creating toolchain directory...\033[0m"; \
 		mkdir -p "$(TOOLCHAIN_PATH)"; \
 		echo "\033[1;33m===> ⬇️ Downloading prebuilt toolchain...\033[0m"; \
@@ -38,7 +38,6 @@ build:
 			$(MAKE) -C "$(TOPDIR)/toolchain" build CT_PREFIX="$(TOOLCHAIN_PATH)" CT_TARGET="$(TOOLCHAIN)" || { \
 				echo "\033[1;31m===> ❌ Toolchain source build failed\033[0m"; exit 1; }; \
 		}; \
-		touch "$(TOOLCHAIN_PATH)/.installed"; \
 	fi
 	@echo "\033[1;32m===> ✅ Toolchain ready: $(TOOLCHAIN)\033[0m"
 	@$(MAKE) prepare-headers
@@ -72,9 +71,10 @@ endif
 $(PRODUCTS):
 	@echo "\033[1;36m===> ⚙️ Setting up configuration for target: $@...\033[0m"
 	@cp -f "$(TEMPLATE_DIR)/$@.config" "$(CONFIG_FILE)"
-	@echo >> "$(CONFIG_FILE)"
-	@echo "CONFIG_CROSS_COMPILER_ROOT=$(TOOLCHAIN_PATH)" >> "$(CONFIG_FILE)"
+	@echo "" >> "$(CONFIG_FILE)"
 	@echo "CONFIG_CROSS_COMPILE=$(TOOLCHAIN)" >> "$(CONFIG_FILE)"
+	@echo "CONFIG_CROSS_COMPILER_ROOT=$(TOOLCHAIN_PATH)" >> "$(CONFIG_FILE)"
+	@echo "TOOLCHAIN_URL=$(TOOLCHAIN_URL)" >> "$(CONFIG_FILE)"
 	@echo "CONFIG_CCACHE=y" >> "$(CONFIG_FILE)"
 	@echo "CONFIG_CCACHE_DIR=$(TOPDIR)" >> "$(CONFIG_FILE)"
 	@echo "\033[1;32m===> 📝 Configuration generated: $(CONFIG_FILE)\033[0m"
