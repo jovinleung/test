@@ -1,9 +1,9 @@
 name: Build Firmware
 
 on:
-  push:
-    branches:
-      - "*"
+#  push:
+#    branches:
+#      - "*"
   workflow_dispatch:
 
 jobs:
@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [K2P]
+        target: [G-AX1800]
         toolchain: [mipsel-linux-musl]
 
     steps:
@@ -40,12 +40,12 @@ jobs:
             bison flex gperf help2man libtool-bin texinfo python3-docutils autopoint gettext ccache \
             autoconf automake liblzma-dev libltdl-dev liblzo2-dev
           echo "BUILD_DATE=$(TZ='Asia/Shanghai' date +%Y%m%d)" >> $GITHUB_ENV
-          echo "CONFIGFILE=${{ github.workspace }}/trunk/configs/templates/${{ matrix.target }}.config" >> $GITHUB_ENV
+          echo "CONFIGFILE=trunk/configs/templates/${{ matrix.target }}.config" >> $GITHUB_ENV
 
       - name: Apply Nano Optimization
         run: |
           for fs in ANTFS FAT EXFAT EXT2 EXT3 EXT4 XFS FUSE SWAP; do
-            sed -i "s/CONFIG_FIRMWARE_ENABLE_${fs}=y/CONFIG_FIRMWARE_ENABLE_${fs}=n/" "${{ env.CONFIGFILE }}"
+            sed -i "s/CONFIG_FIRMWARE_ENABLE_${fs}=y/CONFIG_FIRMWARE_ENABLE_${fs}=n/" "$CONFIGFILE"
           done
           modules=(UVC HID SERIAL AUDIO XFRM QOS IMQ IFB NFSD NFSC CIFS NTFS_3G LPRD U2EC TCPDUMP HDPARM PARTED 
             SMBD WINS SMBD_SYSLOG FTPD RPL2TP EAP_PEAP HTTPS SFTP DROPBEAR DROPBEAR_FAST_CODE OPENSSH OPENVPN SSWAN 
@@ -55,7 +55,7 @@ jobs:
             FRPC FRPS REDSOCKS SHADOWSOCKS XRAY V2RAY TROJAN SSOBFS SINGBOX NAIVEPROXY ADBYBY DNSFORWARDER SMARTDNS 
             ADGUARDHOME ZEROTIER ALIDDNS DDNSTO ALDRIVER SQM WIREGUARD )
           for m in "${modules[@]}"; do
-            sed -i "s/CONFIG_FIRMWARE_INCLUDE_${m}=y/CONFIG_FIRMWARE_INCLUDE_${m}=n/" "${{ env.CONFIGFILE }}"
+            sed -i "s/CONFIG_FIRMWARE_INCLUDE_${m}=y/CONFIG_FIRMWARE_INCLUDE_${m}=n/" "$CONFIGFILE"
           done
 
       - name: Build Firmware

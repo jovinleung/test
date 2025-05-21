@@ -92,6 +92,12 @@ ifeq ($(CONFIG_CCACHE),y)
           echo "\033[1;32m→ Creating wrapper: $$target\033[0m" >&2; \
           ln -sf "$(CCACHE_BIN)" "$$target" || { echo "\033[1;31m===> ❌ Failed to create wrapper $$target (error code: $$?)\033[0m" >&2; exit 1; }; \
         fi; \
+      done; \
+      for bin in $(WRAPPERS); do \
+        if [ ! -x "$(CCACHE_WRAPPER_DIR)/$$bin" ]; then \
+          echo "\033[1;31m===> ❌ ccache wrapper $(CCACHE_WRAPPER_DIR)/$$bin not created\033[0m" >&2; \
+          exit 1; \
+        fi; \
       done)
     PATH := $(CCACHE_WRAPPER_DIR):$(BASE_PATH)
   endif
@@ -138,12 +144,7 @@ config:
 	fi
 	@./configure || { echo "\033[1;31m===> ❌ Configuration failed, check ./configure output for details (error code: $$?)\033[0m"; exit 1; }
 	@if [ "$(CONFIG_CCACHE)" = "y" ]; then \
-		if [ -d "$(CCACHE_DIR)" ] && [ -w "$(CCACHE_DIR)" ]; then \
-			echo "\033[1;32m===> ⚙️ ccache enabled, cache directory: $(CCACHE_DIR), binary: $(CCACHE_BIN)\033[0m"; \
-		else \
-			echo "\033[1;31m===> ❌ ccache enabled but cache directory $(CCACHE_DIR) is invalid or not writable\033[0m"; \
-			exit 1; \
-		fi; \
+		echo "\033[1;32m===> ⚙️ ccache enabled, cache directory: $(CCACHE_DIR), binary: $(CCACHE_BIN)\033[0m"; \
 	else \
 		echo "\033[1;33m===> ℹ️ ccache disabled (ccache not found or CONFIG_CCACHE=n)\033[0m"; \
 	fi
@@ -175,8 +176,7 @@ unpack_trx:
 # === Kernel Build ===
 linux:
 	@echo "\033[1;30;43m BUILD \033[0m \033[1;30;44m Linux kernel (version $(FIRMWARE_KERNEL_VER))...\033[0m"
-	@$(MAKEARCH_KERNEL) -j$(JOBS) -C $(LINUXDIR) $(LINUXTARGET) -s 2> $(LINUXDIR)/kernel_build.log || \
-	{ echo "\033[1;31m===> ❌ Kernel build failed, check $(LINUXDIR)/kernel_build.log (error code: $$?)\033[0m"; exit 1; }
+	@$(MAKEARCH_KERNEL) -j$(JOBS) -C $(LINUXDIR) $(LINUXTARGET) -s || { echo "\033[1;31m===> ❌ Kernel build failed (error code: $$?)\033[0m"; exit 1; }
 	@[ -f $(LINUXDIR)/vmlinux ] && ln -f $(LINUXDIR)/vmlinux $(LINUXDIR)/linux || \
 	{ echo "\033[1;31m===> ❌ Failed to link vmlinux to linux\033[0m"; exit 1; }
 	@echo "\033[1;32m===> ✅ Kernel build completed\033[0m"
@@ -186,8 +186,8 @@ modules:
 	@echo "\033[1;34m===> 🔨 Building kernel modules for $(FIRMWARE_KERNEL_VER)...\033[0m"
 	@if grep -q 'CONFIG_MODULES=y' $(LINUX_CONFIG); then \
 		mkdir -p $(LINUXDIR)/modules; \
-		$(MAKEARCH_KERNEL) -j$(JOBS) -C $(LINUXDIR) modules 2> $(LINUXDIR)/modules_build.log || \
-		{ echo "\033[1;31m===> ❌ Module build failed, check $(LINUXDIR)/modules_build.log (error code: $$?)\033[0m"; exit 1; }; \
+		$(MAKEARCH_KERNEL) -j$(JOBS) -C $(LINUXDIR) modules || \
+		{ echo "\033[1;31m===> ❌ Module build failed (error code: $$?)\033[0m"; exit 1; }; \
 	else \
 		echo "\033[1;33m===> ℹ️ Kernel module support disabled in $(LINUX_CONFIG)\033[0m"; \
 	fi
@@ -195,14 +195,10 @@ modules:
 
 modules_install:
 	@echo "\033[1;34m===> 📦 Installing kernel modules to $(ROMFSDIR)/lib/modules...\033[0m"
-	@if [ ! -d "$(ROMFSDIR)" ]; then \
-		echo "\033[1;31m===> ❌ ROMFS directory $(ROMFSDIR) does not exist\033[0m"; \
-		exit 1; \
-	fi
+	@mkdir -p $(ROMFSDIR)/lib/modules
 	@if grep -q 'CONFIG_MODULES=y' $(LINUX_CONFIG); then \
-		mkdir -p $(ROMFSDIR)/lib/modules; \
-		$(MAKEARCH_KERNEL) -C $(LINUXDIR) INSTALL_MOD_PATH=$(ROMFSDIR) $(DEPMOD) modules_install 2> $(LINUXDIR)/modules_install.log || \
-		{ echo "\033[1;31m===> ❌ Module installation failed, check $(LINUXDIR)/modules_install.log (error code: $$?)\033[0m"; exit 1; }; \
+		$(MAKEARCH_KERNEL) -C $(LINUXDIR) INSTALL_MOD_PATH=$(ROMFSDIR) $(DEPMOD) modules_install || \
+		{ echo "\033[1;31m===> ❌ Module installation failed (error code: $$?)\033[0m"; exit 1; }; \
 	else \
 		echo "\033[1;33m===> ℹ️ Kernel module support disabled in $(LINUX_CONFIG)\033[0m"; \
 	fi
@@ -210,14 +206,10 @@ modules_install:
 
 modules_copy:
 	@echo "\033[1;34m===> 📦 Copying merged kernel modules to $(ROMFSDIR)/lib/modules...\033[0m"
-	@if [ ! -d "$(ROMFSDIR)" ]; then \
-		echo "\033[1;31m===> ❌ ROMFS directory $(ROMFSDIR) does not exist\033[0m"; \
-		exit 1; \
-	fi
+	@mkdir -p $(ROMFSDIR)/lib/modules
 	@if [ ! -d "$(MERGE_ROOTFS)/lib/modules" ]; then \
 		echo "\033[1;33m===> ℹ️ No modules directory found at $(MERGE_ROOTFS)/lib/modules\033[0m"; \
 	else \
-		mkdir -p $(ROMFSDIR)/lib/modules; \
 		cp -rfa $(MERGE_ROOTFS)/lib/modules/. $(ROMFSDIR)/lib/modules/ || \
 		{ echo "\033[1;31m===> ❌ Module copy failed (error code: $$?)\033[0m"; exit 1; }; \
 		echo "\033[1;32m===> ✅ Modules copied to $(ROMFSDIR)/lib/modules\033[0m"; \
@@ -226,10 +218,7 @@ modules_copy:
 # === Binary Copy ===
 bin_copy:
 	@echo "\033[1;34m===> 📦 Copying merged binaries to $(ROMFSDIR)...\033[0m"
-	@if [ ! -d "$(ROMFSDIR)" ]; then \
-		echo "\033[1;31m===> ❌ ROMFS directory $(ROMFSDIR) does not exist\033[0m"; \
-		exit 1; \
-	fi
+	@mkdir -p $(ROMFSDIR)
 	@if [ ! -f "$(MERGE_DIR)/file_list" ]; then \
 		echo "\033[1;33m===> ℹ️ No binary file list found at $(MERGE_DIR)/file_list\033[0m"; \
 	else \
@@ -258,12 +247,11 @@ romfs.subdirs: $(patsubst %,%_romfs,vendors $(DIRS))
 
 romfs.post:
 	@echo "\033[1;34m===> 🧩 Post-processing ROMFS in $(ROMFSDIR)...\033[0m"
-	@if [ -d "$(ROMFSDIR)" ]; then \
-		find $(ROMFSDIR) -name CVS -exec rm -rf {} + 2>/dev/null || true; \
-	else \
+	@if [ ! -d "$(ROMFSDIR)" ]; then \
 		echo "\033[1;31m===> ❌ ROMFS directory $(ROMFSDIR) does not exist\033[0m"; \
 		exit 1; \
 	fi
+	@find $(ROMFSDIR) -name CVS -exec rm -rf {} + 2>/dev/null || { echo "\033[1;31m===> ❌ Failed to remove CVS directories\033[0m"; exit 1; }
 	@$(STRIPROMFS) || { echo "\033[1;31m===> ❌ ROMFS stripping failed (error code: $$?)\033[0m"; exit 1; }
 	@$(MAKEARCH) -j$(JOBS) -C vendors romfs.post || { echo "\033[1;31m===> ❌ Vendors romfs.post failed (error code: $$?)\033[0m"; exit 1; }
 	@echo "\033[1;32m===> ✅ ROMFS post-processing completed\033[0m"
@@ -272,9 +260,33 @@ romfs.post:
 image:
 	@echo "\033[1;34m===> 🧱 Generating firmware image in $(IMAGEDIR)...\033[0m"
 	@mkdir -p $(IMAGEDIR)
-	@$(MAKEARCH) -j$(JOBS) -C vendors image 2> $(IMAGEDIR)/image_build.log || \
-	{ echo "\033[1;31m===> ❌ Image generation failed, check $(IMAGEDIR)/image_build.log (error code: $$?)\033[0m"; exit 1; }
-	@echo "\033[1;32m===> ✅ Firmware image generated\033[0m"
+	@echo "[*] Building image with $(JOBS) job(s)..."
+	@$(MAKEARCH) -j$(JOBS) -C vendors image || \
+	{ echo "\033[1;31m===> ❌ Image generation failed (error code: $$?)\033[0m"; exit 1; }
+	@{ \
+		echo ""; \
+		echo "\033[1;33m🎉  Firmware Image Summary:\033[0m"; \
+		echo "  📦 Toolchain       : $(CONFIG_CROSS_COMPILE)"; \
+		echo "  📂 Toolchain Path  : $(or $(CONFIG_CROSS_COMPILER_ROOT),Not set - check CONFIG_CROSS_COMPILER_ROOT)"; \
+		echo "  🌐 Toolchain URL   : $(or $(TOOLCHAIN_URL),Not set - check configuration)"; \
+		echo "  💬 Firmware Image Size:"; \
+		if ls $(IMAGEDIR)/*.trx >/dev/null 2>&1; then \
+			for f in $(IMAGEDIR)/*.trx; do \
+				size=$$(ls -lh "$$f" | awk '{print $$5}'); \
+				echo "    📄 $$f: $$size"; \
+			done; \
+		else \
+			echo "    ⚠️  No .trx files found in \033[1;36m$(IMAGEDIR)\033[0m"; \
+		fi; \
+		echo ""; \
+		echo "\033[1;33m📡  Default Firmware Login Info:\033[0m"; \
+		echo "  🌐 IP Address   : $(or $(LANIP),192.168.2.1)"; \
+		echo "  👤 Username     : $(or $(SIGNACCOUNT),admin)"; \
+		echo "  🔐 Password     : $(or $(SIGNPASSWORD),admin)"; \
+		echo ""; \
+		echo "\033[1;32m✅  Build completed at: $(shell date)\033[0m"; \
+		echo ""; \
+	} | tee -a $(IMAGEDIR)/image_build.log 2>/dev/null || true
 
 # === Sparse Checking ===
 sparse:
@@ -296,11 +308,12 @@ clean: $(patsubst %,%_clean,tools kernel $(DIRS))
 	@rm -rf $(STAGEDIR) $(ROMFSDIR) $(IMAGEDIR) $(MERGE_DIR)
 	@rm -rf $(LINUXDIR)/net/ipsec/alg/libaes $(LINUXDIR)/net/ipsec/alg/perlasm
 	@rm -f $(LINUXDIR)/arch/mips/ramdisk/*.gz $(LINUXDIR)/linux
-	@rm -f $(LINUXDIR)/*.log $(IMAGEDIR)/*.log
 	@echo "\033[1;32m===> ✅ Clean completed\033[0m"
 
 distclean: clean
 	@echo "\033[1;33m===> 🧹 Removing all build and configuration artifacts for firmware...\033[0m"
+	@echo "\033[1;33m===> ⚠️ WARNING: distclean will remove .config and config.arch\033[0m"
+	@read -p "Press Enter to continue or Ctrl+C to cancel..." || true
 	@if [ -d "$(CCACHE_WRAPPER_DIR)" ]; then rm -rf $(CCACHE_WRAPPER_DIR) || { echo "\033[1;31m===> ❌ Failed to remove $(CCACHE_WRAPPER_DIR) (error code: $$?)\033[0m"; exit 1; }; fi
 	@rm -f .config config.arch
 	@echo "\033[1;32m===> ✅ Distclean completed\033[0m"

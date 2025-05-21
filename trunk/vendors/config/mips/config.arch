@@ -40,6 +40,8 @@ ARCH            := mips
 MACHINE         := $(ARCH)
 HOST_TARGET     ?= mipsel-linux
 CROSS_COMPILE   ?= $(CONFIG_CROSS_COMPILE)-
+CROSS           ?= $(CROSS_COMPILE)
+CONFIGURE_HOST  ?= $(CONFIG_CROSS_COMPILE)-
 
 # Toolchain commands
 CC       := $(CROSS_COMPILE)gcc

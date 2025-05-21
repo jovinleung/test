@@ -87,7 +87,7 @@ on:
         description: 'Plugin JSON, e.g. {"ss":"y","xray":"n"}'
         required: true
         type: string
-        default: '{"ss":"y","v2ray":"n","xray":"y","trojan":"y","ssobfs":"y","smartdns":"y","vlmcsd":"y","ttyd":"n","iperf3":"n"}'
+        default: '{"ss":"y","v2ray":"n","xray":"y","trojan":"n","ssobfs":"y","smartdns":"y","vlmcsd":"y","ttyd":"n","iperf3":"n"}'
       customization:
         description: 'Customization JSON'
         required: true
@@ -112,10 +112,9 @@ on:
 
 env:
   FIRMWARE_AUTHOR: TurBoTse
-  TOOLCHAIN_ROOT: ${{ github.workspace }}/toolchain/${{ inputs.toolchain }}
-  TOOLCHAIN_URL: https://github.com/jovinleung/test/releases/download/toolchain
-  TRUNKDIR: ${{ github.workspace }}/trunk
-  CONFIGFILE: ${{ github.workspace }}/trunk/configs/templates/${{ inputs.target }}.config
+  TOOLCHAIN: ${{ inputs.toolchain }}
+  TOOLCHAIN_URL: https://github.com/TurBoTse/padavan/releases/download/toolchain/${{ inputs.toolchain }}.tar.xz
+  CONFIGFILE: trunk/configs/templates/${{ inputs.target }}.config
 
 jobs:
   build:
@@ -147,16 +146,6 @@ jobs:
             autoconf automake liblzma-dev libltdl-dev liblzo2-dev jq
           echo "BUILD_DATE=$(TZ='Asia/Shanghai' date +%Y%m%d)" >> $GITHUB_ENV
 
-      - name: Prepare Toolchain
-        run: |
-          if [ ! -d "${{ env.TOOLCHAIN_ROOT }}/bin" ]; then
-            mkdir -p "${{ env.TOOLCHAIN_ROOT }}"
-            echo "⏬ Downloading toolchain..."
-            curl -fL --retry 3 --progress-bar "${{ env.TOOLCHAIN_URL }}/${{ inputs.toolchain }}.tar.xz" \
-              | tar -xJ -C "${{ env.TOOLCHAIN_ROOT }}"
-            echo "✅ Toolchain is ready ${{ inputs.toolchain }}"
-          fi
-
       - name: Validate Input JSON
         run: |
           jq empty <<< '${{ inputs.plugins }}' || { echo "❌ Invalid plugins JSON"; exit 1; }
@@ -183,25 +172,25 @@ jobs:
 
       - name: Apply Configurations
         run: |
-          chmod +x ${{ env.TRUNKDIR }}/custom/scripts/*.sh || true
-          bash ${{ env.TRUNKDIR }}/custom/scripts/setip.sh "$LANIP" ${{ env.TRUNKDIR }}/user/shared/src/defaults.h ${{ env.TRUNKDIR }}/user/www/dict/CN.dict
-          bash ${{ env.TRUNKDIR }}/custom/scripts/setaccount.sh "$SIGNACCOUNT" "$SIGNPASSWORD" ${{ env.TRUNKDIR }}/user/shared/src/defaults.h
-          bash ${{ env.TRUNKDIR }}/custom/scripts/setwifi.sh "$WIFI2GSSID" "$WIFI2GPSK" "$WIFI5GSSID" "$WIFI5GPSK" ${{ env.TRUNKDIR }}/user/shared/src/defaults.h
+          chmod +x trunk/custom/scripts/*.sh || true
+          bash trunk/custom/scripts/setip.sh "$LANIP" trunk/user/shared/src/defaults.h trunk/user/www/dict/CN.dict
+          bash trunk/custom/scripts/setaccount.sh "$SIGNACCOUNT" "$SIGNPASSWORD" trunk/user/shared/src/defaults.h
+          bash trunk/custom/scripts/setwifi.sh "$WIFI2GSSID" "$WIFI2GPSK" "$WIFI5GSSID" "$WIFI5GPSK" trunk/user/shared/src/defaults.h
 
           for key in $(env | grep '^PLUGIN_' | cut -d= -f1); do
-            echo "CONFIG_FIRMWARE_INCLUDE_${key#PLUGIN_}=${!key}" >> "${{ env.CONFIGFILE }}"
+            echo "CONFIG_FIRMWARE_INCLUDE_${key#PLUGIN_}=${!key}" >> "$CONFIGFILE"
           done
 
           if [ "${{ inputs.cpufreq }}" = "true" ]; then
-            echo "CONFIG_FIRMWARE_INCLUDE_OC=y" >> "${{ env.CONFIGFILE }}"
-            echo "CONFIG_FIRMWARE_MT7621_OC=${{ inputs.mt7621_oc }}" >> "${{ env.CONFIGFILE }}"
+            echo "CONFIG_FIRMWARE_INCLUDE_OC=y" >> "$CONFIGFILE"
+            echo "CONFIG_FIRMWARE_MT7621_OC=${{ inputs.mt7621_oc }}" >> "$CONFIGFILE"
           fi
 
       - name: Apply Nano Optimization
         if: ${{ inputs.nanoversion }}
         run: |
           for fs in ANTFS FAT EXFAT EXT2 EXT3 EXT4 XFS FUSE SWAP; do
-            sed -i "s/CONFIG_FIRMWARE_ENABLE_${fs}=y/CONFIG_FIRMWARE_ENABLE_${fs}=n/" "${{ env.CONFIGFILE }}"
+            sed -i "s/CONFIG_FIRMWARE_ENABLE_${fs}=y/CONFIG_FIRMWARE_ENABLE_${fs}=n/" "$CONFIGFILE"
           done
           modules=(UVC HID SERIAL AUDIO XFRM QOS IMQ IFB NFSD NFSC CIFS NTFS_3G LPRD U2EC TCPDUMP HDPARM PARTED 
             SMBD WINS SMBD_SYSLOG FTPD RPL2TP EAP_PEAP HTTPS SFTP DROPBEAR DROPBEAR_FAST_CODE OPENSSH OPENVPN SSWAN 
@@ -211,22 +200,22 @@ jobs:
             FRPC FRPS REDSOCKS SHADOWSOCKS XRAY V2RAY TROJAN SSOBFS SINGBOX NAIVEPROXY ADBYBY DNSFORWARDER SMARTDNS 
             ADGUARDHOME ZEROTIER ALIDDNS DDNSTO ALDRIVER SQM WIREGUARD )
           for m in "${modules[@]}"; do
-            sed -i "s/CONFIG_FIRMWARE_INCLUDE_${m}=y/CONFIG_FIRMWARE_INCLUDE_${m}=n/" "${{ env.CONFIGFILE }}"
+            sed -i "s/CONFIG_FIRMWARE_INCLUDE_${m}=y/CONFIG_FIRMWARE_INCLUDE_${m}=n/" "$CONFIGFILE"
           done
 
       - name: Build Firmware
         run: |
           make ${{ inputs.target }} TOOLCHAIN=${{ inputs.toolchain }}
-          mkdir -p ${{ env.TRUNKDIR }}/output
-          base="${{ env.FIRMWARE_AUTHOR }}-${{ inputs.target }}-4.4-${{ inputs.toolchain }}"
+          mkdir -p trunk/output
+          base="${FIRMWARE_AUTHOR}-${{ inputs.target }}-4.4-${{ inputs.toolchain }}"
           [ "${{ inputs.nanoversion }}" = "true" ] && base="${base}-nano"
           [ "${{ inputs.cpufreq }}" = "true" ] && base="${base}-cpufreq-${{ inputs.mt7621_oc }}"
-          base="${base}-${{ env.BUILD_DATE }}"
+          base="${base}-${BUILD_DATE}"
           i=1
-          for f in ${{ env.TRUNKDIR }}/images/*.trx; do
+          for f in trunk/images/*.trx; do
             suffix=""
             [ $i -gt 1 ] && suffix="-$i"
-            mv "$f" "${{ env.TRUNKDIR }}/output/${base}${suffix}.trx"
+            mv "$f" "trunk/output/${base}${suffix}.trx"
             i=$((i+1))
           done
 
@@ -240,7 +229,8 @@ jobs:
         if: failure()
         with:
           name: config-log
-          path: '**/config.log'
+          path: |
+            **/config.log
 
       - name: Show build info
         run: |
@@ -254,7 +244,7 @@ jobs:
       - uses: actions/upload-artifact@main
         with:
           name: ${{ inputs.target }}-${{ inputs.toolchain }}-${{ env.BUILD_DATE }}
-          path: ${{ env.TRUNKDIR }}/output/*.trx
+          path: trunk/output/*.trx
 
       - uses: softprops/action-gh-release@master
         if: ${{ inputs.release }}
@@ -270,7 +260,7 @@ jobs:
             - CPU OC: ${{ inputs.cpufreq }} (${{ inputs.mt7621_oc }})
             - Plugins: ${{ inputs.plugins }}
             - Custom: ${{ inputs.customization }}
-          files: ${{ env.TRUNKDIR }}/output/*.trx
+          files: trunk/output/*.trx
 
       - uses: dev-drprasad/delete-older-releases@master
         if: ${{ inputs.oldreleases }}
