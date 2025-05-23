@@ -17,16 +17,19 @@
 	leds {
 		compatible = "gpio-leds";
 
+		// Power LED, active high on GPIO0_13
 		stat_r {
 			label = "power";
 			gpios = <&gpio0 13 GPIO_ACTIVE_HIGH>;
 		};
 
+		// WiFi LED, active low on GPIO0_14
 		stat_y {
 			label = "wifi";
 			gpios = <&gpio0 14 GPIO_ACTIVE_LOW>;
 		};
 
+		// WAN LED, active low on GPIO0_15
 		stat_b {
 			label = "wan";
 			gpios = <&gpio0 15 GPIO_ACTIVE_LOW>;
@@ -35,10 +38,9 @@
 
 	gpio-keys-polled {
 		compatible = "gpio-keys-polled";
-		#address-cells = <1>;
-		#size-cells = <0>;
-		poll-interval = <20>;
+		poll-interval = <20>; // Poll every 20 ms
 
+		// WPS button on GPIO0_3, active low
 		wps {
 			label = "wps";
 			gpios = <&gpio0 3 GPIO_ACTIVE_LOW>;
