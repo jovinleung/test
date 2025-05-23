@@ -1,9 +1,9 @@
 name: Build Firmware
 
 on:
-#  push:
-#    branches:
-#      - "*"
+  push:
+    branches:
+      - "*"
   workflow_dispatch:
 
 jobs:
@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [G-AX1800]
+        target: [K2P, G-AX1800]
         toolchain: [mipsel-linux-musl]
 
     steps:
