@@ -59,16 +59,16 @@ config MAC_REPEATER_SUPPORT
 	default y
 
 config MWDS
-    bool "Mixed WDS(MWDS)"
-    depends on CHIP_MT7615E
-    depends on MT_AP_SUPPORT
-    select APCLI_SUPPORT
-    default n
+	bool "Mixed WDS(MWDS)"
+	depends on CHIP_MT7615E
+	depends on MT_AP_SUPPORT
+	select APCLI_SUPPORT
+	default n
 
 config WIFI_SYSTEM_DVT
-    bool "Wifi system dvt Support"
-    depends on MT_AP_SUPPORT
-    default y
+	bool "Wifi system dvt Support"
+	depends on MT_AP_SUPPORT
+	default y
 
 config MUMIMO_SUPPORT
 	bool "MU-MIMO Support"
@@ -97,8 +97,8 @@ config KVRH_SUPPORT
 
 config MT_INTERWORKING
 	bool "802.11u Interworking/Gas Support"
-    depends on MT_AP_SUPPORT
-    default n
+	depends on MT_AP_SUPPORT
+	default n
 
 config MAP_SUPPORT
 	bool "Multi-AP Support"
@@ -121,9 +121,9 @@ config BS_SUPPORT
 	default n
 
 config OFFCHANNEL_SCAN_FEATURE
-    bool "Channel Quality Monitor"
-    depends on MT_AP_SUPPORT
-    default n
+	bool "Channel Quality Monitor"
+	depends on MT_AP_SUPPORT
+	default n
 
 config WAPP_SUPPORT
 	bool "WAPP Support"
@@ -136,7 +136,7 @@ config WAPP_SUPPORT
 	default n
 
 config OCE_SUPPORT
-    bool "Optimized Connectivity Experience Support"
+	bool "Optimized Connectivity Experience Support"
 	depends on MT_AP_SUPPORT
 	depends on MBO_SUPPORT
 	depends on CHIP_MT7915
@@ -144,10 +144,10 @@ config OCE_SUPPORT
 	default y
 
 config WIFI_MSI_SUPPORT
-    bool "MSI support"
-    depends on PCI_MSI
-    depends on CHIP_MT7615E
-    default n
+	bool "MSI support"
+	depends on PCI_MSI
+	depends on CHIP_MT7615E
+	default n
 
 config SNIFFER_SUPPORT
 	bool "SNIFFER"
@@ -157,6 +157,7 @@ config SNIFFER_SUPPORT
 config CFG80211_SUPPORT
 	bool "CFG80211"
 	depends on MT_AP_SUPPORT
+	select IWCOMMAND_CFG80211_SUPPORT
 	default n
 
 #CUSTOMISED HOSTAPD
@@ -168,10 +169,10 @@ config CUSTOMISED_HOSTAPD_SUPPORT
 
 # HOSTAPD WPA3
 config HOSTAPD_WPA3_SUPPORT
-    bool "Hostapd WPA3 Support"
-    depends on MT_AP_SUPPORT
-    depends on CFG80211_SUPPORT
-    default n
+	bool "Hostapd WPA3 Support"
+	depends on MT_AP_SUPPORT
+	depends on CFG80211_SUPPORT
+	default n
 
 #Support iwcommand with cfg80211
 config IWCOMMAND_CFG80211_SUPPORT
@@ -393,10 +394,10 @@ config CUSTOMER_VENDOR_IE_SUPPORT
 #	default n
 
 config WPA3_SUPPORT
-    bool "WPA3 support"
-    depends on MT_AP_SUPPORT
-    depends on CFG80211_SUPPORT=n
-    default n
+	bool "WPA3 Support"
+	depends on MT_AP_SUPPORT
+	depends on CFG80211_SUPPORT=n
+	default n
 
 config OWE_SUPPORT
 	bool "Enhance OPEN(OWE) support"
@@ -405,7 +406,7 @@ config OWE_SUPPORT
 	default n
 
 config VLAN_SUPPORT
-	bool "VLAN support"
+	bool "VLAN Support"
 	depends on MT_AP_SUPPORT
 	default n
 
@@ -417,9 +418,9 @@ config RCSA_SUPPORT
 	default n
 
 config SINGLE_SKU
-    bool "SKU(Single Sku) support"
-    depends on WIFI_DRIVER
-    default y
+	bool "SKU(Single Sku) support"
+	depends on WIFI_DRIVER
+	default y
 
 config PROFILING_SUPPORT
 	bool "WIFI Profiling Support"

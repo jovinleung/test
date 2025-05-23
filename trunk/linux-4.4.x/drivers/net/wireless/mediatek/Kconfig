@@ -5,6 +5,7 @@ menuconfig WL_MEDIATEK
 	  Those drivers make use of the Linux mac80211 stack.
 
 if WL_MEDIATEK
+
 source "drivers/net/wireless/mediatek/mt7601u/Kconfig"
 
 menuconfig WIFI_DRIVER
@@ -15,31 +16,31 @@ if WIFI_DRIVER
 choice
 	prompt "Choose First WiFi Interface"
 
-	config FIRST_IF_NONE
+config FIRST_IF_NONE
 	bool "None"
 
-	config FIRST_IF_MT7602E
+config FIRST_IF_MT7602E
 	bool "MT7602E"
 
-	config FIRST_IF_MT7603E
+config FIRST_IF_MT7603E
 	bool "MT7603E"
 
-	config FIRST_IF_MT7615E
+config FIRST_IF_MT7615E
 	bool "MT7615E"
 	select WIFI_MT_MAC
 	select MT_MAC
 
-	config FIRST_IF_MT7622
+config FIRST_IF_MT7622
 	bool "MT7622"
 	select WIFI_MT_MAC
 	select MT_MAC
 
-	config FIRST_IF_MT7626
+config FIRST_IF_MT7626
 	bool "MT7626"
 	select WIFI_MT_MAC
 	select MT_MAC
 
-	config FIRST_IF_MT7915
+config FIRST_IF_MT7915
 	bool "MT7915"
 	select WIFI_MT_MAC
 	select MT_MAC
@@ -48,13 +49,14 @@ endchoice
 
 choice
 	prompt "Choose Second WiFi Interface"
-	config SECOND_IF_NONE
+
+config SECOND_IF_NONE
 	bool "None"
-	
-	config SECOND_IF_MT7612E
+
+config SECOND_IF_MT7612E
 	bool "MT7612E"
 
-	config SECOND_IF_MT7615E
+config SECOND_IF_MT7615E
 	bool "MT7615E"
 	select WIFI_MT_MAC
 	select MULTI_INF_SUPPORT
@@ -63,10 +65,11 @@ endchoice
 
 choice
 	prompt "Choose Third WiFi Interface"
-	config THIRD_IF_NONE
+
+config THIRD_IF_NONE
 	bool "None"
 
-	config THIRD_IF_MT7615E
+config THIRD_IF_MT7615E
 	bool "MT7615E"
 	select WIFI_MT_MAC
 	select MULTI_INF_SUPPORT
@@ -77,7 +80,7 @@ config RT_FIRST_CARD
 	int
 	depends on !FIRST_IF_NONE
 	default 7602 if FIRST_IF_MT7602E
-	default 7603 if FIRST_IF_MT7603E	
+	default 7603 if FIRST_IF_MT7603E
 	default 7615 if FIRST_IF_MT7615E
 	default 7622 if FIRST_IF_MT7622
 	default 7626 if FIRST_IF_MT7626
@@ -109,84 +112,96 @@ config RT_THIRD_IF_RF_OFFSET
 	depends on !THIRD_IF_NONE
 	default 0x10000
 
-if (FIRST_IF_MT7615E || SECOND_IF_MT7615E || FIRST_IF_MT7915)
+if FIRST_IF_MT7615E || SECOND_IF_MT7615E || FIRST_IF_MT7915
+
 menu "MT7615/MT7915 common configs"
 
 choice
 	prompt "PA LNA Type of 1st Card"
-	depends on ! FIRST_IF_NONE
+	depends on !FIRST_IF_NONE
 
-	config FIRST_IF_EPAELNA
+config FIRST_IF_EPAELNA
 	bool "ePAeLNA"
-	config FIRST_IF_IPAILNA
-	bool "iPAiLNA"		
-	config FIRST_IF_IPAELNA
+
+config FIRST_IF_IPAILNA
+	bool "iPAiLNA"
+
+config FIRST_IF_IPAELNA
 	bool "iPAeLNA"
+
 endchoice
 
 choice
 	prompt "PA LNA Type of 2nd Card"
 	depends on ! SECOND_IF_NONE
 
-	config SECOND_IF_EPAELNA
+config SECOND_IF_EPAELNA
 	bool "ePAeLNA"
-	config SECOND_IF_IPAILNA
-	bool "iPAiLNA"		
-	config SECOND_IF_IPAELNA
+
+config SECOND_IF_IPAILNA
+	bool "iPAiLNA"
+
+config SECOND_IF_IPAELNA
 	bool "iPAeLNA"
+
 endchoice
 
 choice
 	prompt "PA LNA Type of 3rd Card"
 	depends on ! THIRD_IF_NONE
 
-	config THIRD_IF_EPAELNA
+config THIRD_IF_EPAELNA
 	bool "ePAeLNA"
-	config THIRD_IF_IPAILNA
-	bool "iPAiLNA"		
-	config THIRD_IF_IPAELNA
+
+config THIRD_IF_IPAILNA
+	bool "iPAiLNA"
+
+config THIRD_IF_IPAELNA
 	bool "iPAeLNA"
+
 endchoice
 
 choice
 	prompt "Main Mode"
 	default WIFI_MODE_AP
 
-	config WIFI_MODE_AP
+config WIFI_MODE_AP
 	tristate "AP"
 	select MT_AP_SUPPORT
 
-	config WIFI_MODE_STA
+config WIFI_MODE_STA
 	tristate "STA"
 	select MT_STA_SUPPORT
 
-	config WIFI_MODE_BOTH
+config WIFI_MODE_BOTH
 	tristate "APSTA"
 	select MT_AP_SUPPORT
 	select MT_STA_SUPPORT
+
 endchoice
+
 endmenu
 endif
 
-if (FIRST_IF_MT7615E || SECOND_IF_MT7615E)
+if FIRST_IF_MT7615E || SECOND_IF_MT7615E
 menu "MediaTek MT7615E PCIe Wireless driver"
 source "drivers/net/wireless/mediatek/mt7615/embedded/Kconfig"
 endmenu
 endif
 
-if (FIRST_IF_MT7602E || SECOND_IF_MT7612E)
+if FIRST_IF_MT7602E || SECOND_IF_MT7612E
 menu "MediaTek MT7612E PCIe Wireless driver"
 source "drivers/net/wireless/mediatek/mt76x2_ap/Kconfig"
 endmenu
 endif
 
-if (FIRST_IF_MT7603E)
+if FIRST_IF_MT7603E
 menu "MediaTek MT7603 PCIe Wireless driver"
 source "drivers/net/wireless/mediatek/mt76x3/Kconfig"
 endmenu
 endif
 
-if (FIRST_IF_MT7915)
+if FIRST_IF_MT7915
 menu "MediaTek MT7915 PCIe Wireless driver"
 source "drivers/net/wireless/mediatek/mt7915/embedded/Kconfig"
 endmenu
