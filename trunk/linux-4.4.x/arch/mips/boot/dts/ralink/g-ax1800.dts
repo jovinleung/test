@@ -16,11 +16,13 @@
 	leds {
 		compatible = "gpio-leds";
 
+		// Power red LED, active low on GPIO0_7
 		sys_red {
 			label = "power_red";
 			gpios = <&gpio0 7 GPIO_ACTIVE_LOW>;
 		};
 
+		// Power green LED, active low on GPIO0_8
 		sys_green {
 			label = "power";
 			gpios = <&gpio0 8 GPIO_ACTIVE_LOW>;
@@ -29,16 +31,16 @@
 
 	gpio-keys-polled {
 		compatible = "gpio-keys-polled";
-		#address-cells = <1>;
-		#size-cells = <0>;
-		poll-interval = <20>;
+		poll-interval = <20>;  // Poll interval in milliseconds
 
+		// Reset button, active low on GPIO0_18
 		reset {
 			label = "reset";
 			gpios = <&gpio0 18 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_RESTART>;
 		};
 
+		// WPS button, active low on GPIO0_6
 		wps {
 			label = "wps";
 			gpios = <&gpio0 6 GPIO_ACTIVE_LOW>;
@@ -48,15 +50,16 @@
 };
 
 &bch {
-	status = "okay";
+	status = "okay";  // Enable BCH ECC hardware
 };
 
 &nand {
-	status = "okay";
+	status = "okay";  // Enable NAND flash
 
 	flash@0 {
 		reg = <0>;
-		nand-ecc-mode = "hw";
+		nand-ecc-mode = "hw";  // Use hardware ECC
+
 		partitions {
 			compatible = "fixed-partitions";
 			#address-cells = <1>;
@@ -64,52 +67,52 @@
 
 			partition@0 {
 				label = "Bootloader";
-				reg = <0x00000 0x80000>; /* 512k */
+				reg = <0x00000 0x80000>; /* 512 KB */
 			};
 
 			partition@80000 {
 				label = "CFG_Bdata";
-				reg = <0x80000 0x80000>; /* 512k */
+				reg = <0x80000 0x80000>; /* 512 KB */
 			};
 
 			partition@100000 {
 				label = "Factory";
-				reg = <0x100000 0x80000>; /* 512k */
+				reg = <0x100000 0x80000>; /* 512 KB */
 			};
 
 			partition@180000 {
 				label = "Crash";
-				reg = <0x180000 0x80000>; /* 512k */
+				reg = <0x180000 0x80000>; /* 512 KB */
 			};
 
 			partition@200000 {
 				label = "firmware";
-				reg = <0x200000 0x1800000>; /* 24M */
+				reg = <0x200000 0x1800000>; /* 24 MB */
 			};
 
 			partition@1a00000 {
 				label = "Config";
-				reg = <0x1a00000 0x80000>; /* 512K */
+				reg = <0x1a00000 0x80000>; /* 512 KB */
 			};
 
 			partition@1a80000 {
 				label = "Storage";
-				reg = <0x1a80000 0x400000>; /* 4096K */
+				reg = <0x1a80000 0x400000>; /* 4 MB */
 			};
 
 			partition@1e80000 {
 				label = "RWFS";
-				reg = <0x1e80000 0x6100000>;
+				reg = <0x1e80000 0x6100000>; /* ~100 MB */
 			};
 
 			partition@all {
 				label = "ALL";
-				reg = <0x0 0x7f80000>;
+				reg = <0x0 0x7f80000>; /* Entire flash */
 			};
 		};
 	};
 };
 
 &pcie {
-	status = "okay";
+	status = "okay";  // Enable PCIe interface
 };
