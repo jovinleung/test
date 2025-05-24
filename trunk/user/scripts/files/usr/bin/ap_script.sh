@@ -1,129 +1,125 @@
 #!/bin/sh
-#/etc/storage/ap_script.sh
-# 修复/tmp/apc.lock一直存在，无法启动检查进程
-# 避免多次启动检查进程/etc/storage/sh_ezscript.sh
-# 每隔15秒检查AP中断/连接(之前是63秒)
+# /etc/storage/ap_script.sh
+# 监控并管理 AP 中继连接，每 15 秒检查一次。
 
-# AP中继连接守护功能。【0】 Internet互联网断线后自动搜寻；【1】 当中继信号断开时启动自动搜寻。
-nvram set ap_check=0
+# 配置参数
+nvram set ap_check=0           # 0: 互联网断线后自动搜索；1: AP 断开时自动搜索
+nvram set ap_inet_check=0      # 0: 连接 AP 即成功；1: 需连接 AP 和互联网
+nvram set ap_time_check=0      # 0: 连接后停止搜索；>=10: 每 N 秒搜索
+nvram set ap_black=0           # 0: 禁用黑名单；1: 启用黑名单
+nvram set ap_fenge='@'         # AP 配置分隔符
+nvram set ap_rule=0            # 0: 优先连接第一行 AP；1: 连接最强信号
 
-# AP连接成功条件，【0】 连上AP即可，不检查是否联网；【1】 连上AP并连上Internet互联网。
-nvram set ap_inet_check=0
+# 验证依赖
+command -v nvram >/dev/null 2>&1 || { logger -t "AP 中继" "错误：未找到 nvram 命令"; exit 1; }
+command -v iwconfig >/dev/null 2>&1 || { logger -t "AP 中继" "错误：未找到 iwconfig 命令"; exit 1; }
+command -v ifconfig >/dev/null 2>&1 || { logger -t "AP 中继" "错误：未找到 ifconfig 命令"; exit 1; }
 
-# 【0】 自动搜寻AP，成功连接后停止搜寻；大于等于【10】时则每隔【N】秒搜寻(无线网络会瞬断一下)，直到连上最优先信号。
-nvram set ap_time_check=0
-
-# 如搜寻的AP不联网则列入黑名单/tmp/apblack.txt 功能 【0】关闭；【1】启动
-# 控制台输入【echo "" > /tmp/apblack.txt】可以清空黑名单
-nvram set ap_black=0
-
-# 自定义分隔符号，默认为【@】，注意:下面配置一同修改
-nvram set ap_fenge='@'
-
-# 搜寻AP排序设置【0】从第一行开始（第一行的是最优先信号）；【1】不分顺序自动连接最强信号
-nvram set ap_rule=0
-
-# 【自动切换中继信号】功能 填写配置参数启动
-cat >/tmp/ap2g5g.txt <<-\EOF
-# 中继AP配置填写说明：
-# 各参数用【@】分割开，如果有多个信号可回车换行继续填写即可(从第一行的参数开始搜寻)【第一行的是最优先信号】
-# 搜寻时无线网络会瞬断一下
-# 参数说明：
-# ①2.4Ghz或5Ghz："2"=【2.4Ghz】"5"=【5Ghz】
-# ②无线AP工作模式："3"=【AP-Client（AP被禁用）】"4"=【AP-Client + AP】（不支持WDS）
-# ③无线AP-Client角色： "0"=【LAN bridge】"1"=【WAN (Wireless ISP)】
-# ④中继AP 的 SSID："ASUS"
-# ⑤中继AP 密码："1234567890"
-# ⑥中继AP 的 MAC地址："20:76:90:20:B0:F0"【SSID有中文时需填写，不限大小写】
-# 下面是信号填写例子：（删除前面的#可生效）
+# 创建 AP 配置文件
+AP_CONFIG="/tmp/ap2g5g.txt"
+AP_TEMP="/tmp/ap2g5g"
+cat >"$AP_CONFIG" <<-\EOF
+# AP 配置格式：band@mode@role@SSID@password[@MAC]
+# band: 2=2.4Ghz, 5=5Ghz
+# mode: 3=AP-Client, 4=AP-Client+AP
+# role: 0=LAN 桥接, 1=WAN (无线 ISP)
+# 示例：
 #2@4@1@ASUS@1234567890
 #2@4@1@ASUS_中文@1234567890@34:bd:f9:1f:d2:b1
-#2@4@1@ASUS3@1234567890@34:bd:f9:1f:d2:b0
-
-
-
-
-
 EOF
 
-rt_mode_x=`nvram get rt_mode_x`
-wl_mode_x=`nvram get wl_mode_x`
-if [ $rt_mode_x -gt 2 ] || [ $wl_mode_x -gt 2 ]; then
-cat /tmp/ap2g5g.txt | grep -v '^#'  | grep -v "^$" > /tmp/ap2g5g
+# 检查路由器模式
+rt_mode_x=$(nvram get rt_mode_x)
+wl_mode_x=$(nvram get wl_mode_x)
+if [ "$rt_mode_x" -le 2 ] && [ "$wl_mode_x" -le 2 ]; then
+    logger -t "AP 中继" "无效的路由器模式，退出"
+    exit 0
 fi
-killall sh_apauto.sh
-if [ -f /tmp/ap2g5g ] ; then
-cat >/tmp/sh_apauto.sh <<-\EOF
+
+# 过滤非空、非注释行
+grep -v '^#' "$AP_CONFIG" | grep -v "^$" > "$AP_TEMP"
+[ ! -s "$AP_TEMP" ] && { logger -t "AP 中继" "未找到有效的 AP 配置"; exit 0; }
+
+# 停止已运行的 sh_apauto.sh
+killall sh_apauto.sh 2>/dev/null
+
+# 创建并运行自动连接脚本
+cat >"/tmp/sh_apauto.sh" <<-\EOF
 #!/bin/sh
 [ "$1" = "crontabs" ] && sleep 15
-logger -t "【AP 中继】" "连接守护启动"
-while [ -s /tmp/ap2g5g ]; do
-# [2023-1-11] check if ap_script.sh / sh_ezscript.sh exists
-ap_script_num=$(ps | grep -E "[a]p_script.sh" | wc -l)
-sh_ezscript_num=$(ps | grep -E "[s]h_ezscript.sh" | wc -l)
-if [[ $ap_script_num == "0" && $ap_script_num == "0" ]]; then
-  #logger -t "【移除apc.lock】" "没有找到中继检查进程"
-  rm -f /tmp/apc.lock
-fi
+logger -t "AP 中继" "启动连接监控"
 
-radio2_apcli=`nvram get radio2_apcli`
-[ -z $radio2_apcli ] && radio2_apcli="apcli0"
-radio5_apcli=`nvram get radio5_apcli`
-[ -z $radio5_apcli ] && radio5_apcli="apclii0"
-  ap_check=`nvram get ap_check`
-  if [[ "$ap_check" == 1 ]] && [ ! -f /tmp/apc.lock ] ; then
-  #【1】 当中继信号断开时启动自动搜寻
-  a2=`ifconfig | grep $radio2_apcli`
-  sleep 1
-  a5=`ifconfig | grep $radio5_apcli`
-  sleep 1
-  [ "$a2" = "" -a "$a5" = "" ] && ap=1 || ap=0
-  if [ "$ap" = "1" ] ; then
-    logger -t "【AP 中继】" "连接中断，启动自动搜寻"
-    [ $sh_ezscript_num == "0" ] && /etc/storage/sh_ezscript.sh connAPSite_scan &
-    sleep 10
-  fi
-  fi
-  ap_time_check="$(nvram get ap_time_check)"
-  if [ "$ap_time_check" -ge 9 ] && [ ! -f /tmp/apc.lock ] ; then
-    ap_fenge="$(nvram get ap_fenge)"
-    rtwlt_sta_ssid_1=$(echo $(grep -v '^#' /tmp/ap2g5g | grep -v "^$" | head -1) | cut -d $ap_fenge -f4)
-    rtwlt_sta_bssid_1=$(echo $(grep -v '^#' /tmp/ap2g5g | grep -v "^$" | head -1) | cut -d $ap_fenge -f6 | tr 'A-Z' 'a-z')
-    [ "$(echo $(grep -v '^#' /tmp/ap2g5g | grep -v "^$" | head -1) | cut -d $ap_fenge -f1)" = "5" ] && radio2_apcli="$radio5_apcli"
-    rtwlt_sta_ssid="$(iwconfig $radio2_apcli | grep ESSID: | awk -F'"' '/ESSID/ {print $2}')"
-    sleep 1
-    rtwlt_sta_bssid="$(iwconfig $radio2_apcli |sed -n '/'$radio2_apcli'/,/Rate/{/'$radio2_apcli'/n;/Rate/b;p}' | tr 'A-Z' 'a-z'  | awk -F'point:' '/point/ {print $2}')"
-    sleep 1
-    rtwlt_sta_bssid="$(echo $rtwlt_sta_bssid)"
-    [ ! -z "$rtwlt_sta_ssid_1" ] && [ ! -z "$rtwlt_sta_ssid" ] && [ "$rtwlt_sta_ssid_1" == "$rtwlt_sta_ssid" ] && ap_time_check=0
-    [ ! -z "$rtwlt_sta_bssid_1" ] && [ ! -z "$rtwlt_sta_bssid" ] && [ "$rtwlt_sta_bssid_1" == "$rtwlt_sta_bssid" ] && ap_time_check=0
-    if [ "$ap_time_check" -ge 9 ] && [ ! -f /tmp/apc.lock ] ; then
-    
-    logger -t "【连接 AP】" "$ap_time_check 秒后,自动搜寻 ap ,直到连上最优先信号 $rtwlt_sta_ssid_1 "
-    sleep $ap_time_check
-    [ $sh_ezscript_num == "0" ] && /etc/storage/sh_ezscript.sh connAPSite_scan &
+while [ -s "$AP_TEMP" ]; do
+    # 检查冲突进程
+    if ! ps | grep -qE "[a]p_script.sh|[s]h_ezscript.sh"; then
+        rm -f /tmp/apc.lock
+    fi
 
-    sleep 10
+    # 获取无线接口
+    radio2_apcli=$(nvram get radio2_apcli || echo "apcli0")
+    radio5_apcli=$(nvram get radio5_apcli || echo "apclii0")
+
+    ap_check=$(nvram get ap_check)
+    if [ "$ap_check" = "1" ] && [ ! -f /tmp/apc.lock ]; then
+        # 检查 AP 是否断开
+        a2=$(ifconfig 2>/dev/null | grep "$radio2_apcli")
+        a5=$(ifconfig 2>/dev/null | grep "$radio5_apcli")
+        if [ -z "$a2" ] && [ -z "$a5" ]; then
+            logger -t "AP 中继" "AP 断开，启动扫描"
+            if ! ps | grep -q "[s]h_ezscript.sh"; then
+                /etc/storage/sh_ezscript.sh connAPSite_scan &
+            fi
+            sleep 10
+        fi
     fi
-  fi
-  if [[ "$ap_check" == 0 ]] && [ ! -f /tmp/apc.lock ] ; then
-    #【2】 Internet互联网断线后自动搜寻
-    ping_text=`ping -4 223.5.5.5 -c 1 -w 4 -q`
-    ping_time=`echo $ping_text | awk -F '/' '{print $4}'| awk -F '.' '{print $1}'`
-    ping_loss=`echo $ping_text | awk -F ', ' '{print $3}' | awk '{print $1}'`
-    if [ ! -z "$ping_time" ] ; then
-    echo "online"
-    else
-    echo "Internet互联网断线后自动搜寻"
-    [ $sh_ezscript_num == "0" ] && /etc/storage/sh_ezscript.sh connAPSite_scan &
-    sleep 10
+
+    ap_time_check=$(nvram get ap_time_check)
+    if [ "$ap_time_check" -ge 9 ] && [ ! -f /tmp/apc.lock ]; then
+        ap_fenge=$(nvram get ap_fenge)
+        # 获取优先 AP 配置
+        first_ap=$(grep -v '^#' "$AP_TEMP" | head -1)
+        rtwlt_sta_ssid_1=$(echo "$first_ap" | cut -d "$ap_fenge" -f4)
+        rtwlt_sta_bssid_1=$(echo "$first_ap" | cut -d "$ap_fenge" -f6 | tr '[:upper:]' '[:lower:]')
+        [ "$(echo "$first_ap" | cut -d "$ap_fenge" -f1)" = "5" ] && radio2_apcli="$radio5_apcli"
+
+        # 获取当前连接信息
+        rtwlt_sta_ssid=$(iwconfig "$radio2_apcli" 2>/dev/null | awk -F'"' '/ESSID/ {print $2}')
+        rtwlt_sta_bssid=$(iwconfig "$radio2_apcli" 2>/dev/null | grep -o 'Access Point: [0-9A-Fa-f:]\+' | cut -d' ' -f3 | tr '[:upper:]' '[:lower:]')
+
+        # 检查是否连接到优先 AP
+        if [ -n "$rtwlt_sta_ssid_1" ] && [ -n "$rtwlt_sta_ssid" ] && [ "$rtwlt_sta_ssid_1" = "$rtwlt_sta_ssid" ] && \
+           { [ -z "$rtwlt_sta_bssid_1" ] || [ "$rtwlt_sta_bssid_1" = "$rtwlt_sta_bssid" ]; }; then
+            ap_time_check=0
+        fi
+
+        if [ "$ap_time_check" -ge 9 ]; then
+            logger -t "AP 中继" "$ap_time_check 秒后扫描优先 AP $rtwlt_sta_ssid_1"
+            sleep "$ap_time_check"
+            if ! ps | grep -q "[s]h_ezscript.sh"; then
+                /etc/storage/sh_ezscript.sh connAPSite_scan &
+            fi
+            sleep 10
+        fi
     fi
-  fi
-  sleep 15
-  cat /tmp/ap2g5g.txt | grep -v '^#'  | grep -v "^$" > /tmp/ap2g5g
+
+    if [ "$ap_check" = "0" ] && [ ! -f /tmp/apc.lock ]; then
+        # 检查互联网连接
+        ping_text=$(ping -4 223.5.5.5 -c 1 -w 4 -q 2>/dev/null)
+        ping_loss=$(echo "$ping_text" | awk -F ', ' '{print $3}' | awk '{print $1}')
+        if [ -z "$ping_text" ] || [ "$ping_loss" = "100%" ]; then
+            logger -t "AP 中继" "互联网断开，启动扫描"
+            if ! ps | grep -q "[s]h_ezscript.sh"; then
+                /etc/storage/sh_ezscript.sh connAPSite_scan &
+            fi
+            sleep 10
+        fi
+    fi
+
+    sleep 15
 done
 EOF
-  chmod 777 "/tmp/sh_apauto.sh"
-  [ -z "$(ps -w | grep sh_apauto.sh | grep -v grep)" ] && /tmp/sh_apauto.sh $1 &
-fi
 
+chmod 755 "/tmp/sh_apauto.sh"
+if ! ps -w | grep -q "[s]h_apauto.sh"; then
+    /tmp/sh_apauto.sh "$1" &
+fi

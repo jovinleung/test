@@ -1,308 +1,221 @@
-connAPSite () {
-. /etc/storage/ap_script.sh
-logger -t "【连接 AP】" "10秒后, 自动搜寻 ap"
-sleep 10
-ap_fenge=`nvram get ap_fenge`
-radio2_apcli=`nvram get radio2_apcli`
-[ -z $radio2_apcli ] && radio2_apcli="apcli0"
-radio5_apcli=`nvram get radio5_apcli`
-[ -z $radio5_apcli ] && radio5_apcli="apclii0"
-cat /tmp/ap2g5g.txt | grep -v '^#'  | grep -v "^$" > /tmp/ap2g5g
-if [ ! -f /tmp/apc.lock ] && [ -s /tmp/ap2g5g ] ; then
-touch /tmp/apc.lock
-a2=`iwconfig $radio2_apcli | awk -F'"' '/ESSID/ {print $2}'`
-a5=`iwconfig $radio5_apcli | awk -F'"' '/ESSID/ {print $2}'`
-[ "$a2" = "" -a "$a5" = "" ] && ap=1 || ap=0
-if [ "$ap" = "1" ] || [ "$1" = "scan" ] ; then
-#搜寻开始/tmp/ap2g5g
-	if [ ! -z "$(cat /tmp/ap2g5g | cut -d $ap_fenge -f1 | grep "2")" ]; then
-	radio_main="$(nvram get radio2_main)"
-	[ -z "$radio_main" ] && radio_main="ra0"
-	logger -t "【连接 AP】" "scan 2g $radio_main"
-	iwpriv $radio_main set SiteSurvey=1
-	sleep 1
-	wds_aplist2g="$(iwpriv $radio_main get_site_survey)"
-	[ ! -z "$(echo "$wds_aplist"| grep "get_site_survey:No BssInfo")" ] && sleep 2 && wds_aplist="$(iwpriv $radio_main get_site_survey)"
-	[ ! -z "$(echo "$wds_aplist"| grep "get_site_survey:No BssInfo")" ] && sleep 3 && wds_aplist="$(iwpriv $radio_main get_site_survey)"
-	aplist_n="$(echo "$wds_aplist2g" | sed -n '2p')"
-	fi
-	if [ ! -z "$(cat /tmp/ap2g5g | cut -d $ap_fenge -f1 | grep "5")" ] ; then
-	radio_main="$(nvram get radio5_main)"
-	[ -z "$radio_main" ] && radio_main="rai0"
-	logger -t "【连接 AP】" "scan 5g $radio_main"
-	iwpriv $radio_main set SiteSurvey=1
-	sleep 1
-	wds_aplist5g="$(iwpriv $radio_main get_site_survey)"
-	[ ! -z "$(echo "$wds_aplist"| grep "get_site_survey:No BssInfo")" ] && sleep 2 && wds_aplist="$(iwpriv $radio_main get_site_survey)"
-	[ ! -z "$(echo "$wds_aplist"| grep "get_site_survey:No BssInfo")" ] && sleep 3 && wds_aplist="$(iwpriv $radio_main get_site_survey)"
-	aplist_n="$(echo "$wds_aplist5g" | sed -n '2p')"
-	fi
-	ap3=1
-	ap_rule=`nvram get ap_rule`
-	# 【0】从第一行开始（第一行的是最优先信号）；
-	while read line
-	do
-		apc=`echo "$line" | grep -v '^#' | grep -v "^$"`
-		if [ ! -z "$apc" ] ; then
-		if [ "$ap_rule" = "1" ] ; then
-			# 只执行一次【1】不分顺序自动连接最强信号
-			echo -n "" > /tmp/ap2g5g_site_survey ; echo -n "" > /tmp/ap2g5g_apc
-			echo "$wds_aplist2g" | while read i_a ; do 
-			if [ ! -z "$i_a" ] ; then
-			[ -s /tmp/ap2g5g_site_survey ] && continue #跳出当前循环
-			for i_b in `cat /tmp/ap2g5g  | grep -v '^#' | grep -v "^$" | grep "^2"` ; do
-			if [ ! -z "$i_b" ] ; then
-			[ -s /tmp/ap2g5g_apc ] && continue #跳出当前循环
-			site_survey=""
-			rtwlt_sta_ssid="$(echo "$i_b" | cut -d $ap_fenge -f4)"
-			rtwlt_sta_bssid="$(echo "$i_b" | cut -d $ap_fenge -f6 | tr 'A-Z' 'a-z')"
-			[ ! -z "$rtwlt_sta_ssid" ] && site_survey="$(echo "$i_a" | grep -Eo '[0-9]*[\ ]*'"$rtwlt_sta_ssid".* | tr 'A-Z' 'a-z' | sed -n '1p')"
-			[ ! -z "$rtwlt_sta_bssid" ] && site_survey="$(echo "$i_a" | tr 'A-Z' 'a-z' | sed -n "/$rtwlt_sta_bssid/p" | sed -n '1p')"
-			[ ! -z "$rtwlt_sta_ssid" ] && [ ! -z "$rtwlt_sta_bssid" ] && site_survey="$(echo "$i_a" | grep -Eo '[0-9]*[\ ]*'"$rtwlt_sta_ssid".* | tr 'A-Z' 'a-z' | sed -n "/$rtwlt_sta_bssid/p" | sed -n '1p')"
-			[ ! -z "$site_survey" ] && echo "$site_survey" > /tmp/ap2g5g_site_survey
-			[ ! -z "$site_survey" ] && echo "$i_b" > /tmp/ap2g5g_apc
-			[ ! -z "$site_survey" ] && continue #跳出当前循环
-			fi
-			done
-			fi
-			done
-			echo "$wds_aplist5g" | while read i_a ; do 
-			if [ ! -z "$i_a" ] ; then
-			[ -s /tmp/ap2g5g_site_survey ] && continue #跳出当前循环
-			for i_b in `cat /tmp/ap2g5g  | grep -v '^#' | grep -v "^$" | grep "^5"` ; do
-			if [ ! -z "$i_b" ] ; then
-			[ -s /tmp/ap2g5g_apc ] && continue #跳出当前循环
-			site_survey=""
-			rtwlt_sta_ssid="$(echo "$i_b" | cut -d $ap_fenge -f4)"
-			rtwlt_sta_bssid="$(echo "$i_b" | cut -d $ap_fenge -f6 | tr 'A-Z' 'a-z')"
-			[ ! -z "$rtwlt_sta_ssid" ] && site_survey="$(echo "$i_a" | grep -Eo '[0-9]*[\ ]*'"$rtwlt_sta_ssid".* | tr 'A-Z' 'a-z' | sed -n '1p')"
-			[ ! -z "$rtwlt_sta_bssid" ] && site_survey="$(echo "$i_a" | tr 'A-Z' 'a-z' | sed -n "/$rtwlt_sta_bssid/p" | sed -n '1p')"
-			[ ! -z "$rtwlt_sta_ssid" ] && [ ! -z "$rtwlt_sta_bssid" ] && site_survey="$(echo "$i_a" | grep -Eo '[0-9]*[\ ]*'"$rtwlt_sta_ssid".* | tr 'A-Z' 'a-z' | sed -n "/$rtwlt_sta_bssid/p" | sed -n '1p')"
-			[ ! -z "$site_survey" ] && echo "$site_survey" > /tmp/ap2g5g_site_survey
-			[ ! -z "$site_survey" ] && echo "$i_b" > /tmp/ap2g5g_apc
-			[ ! -z "$site_survey" ] && continue #跳出当前循环
-			fi
-			done
-			fi
-			done
-			apc="$(cat /tmp/ap2g5g_apc)"
-			site_survey="$(cat /tmp/ap2g5g_site_survey)"
-		fi
-		radio=$(echo "$apc" | cut -d $ap_fenge -f1)
-		rtwlt_mode_x="$(echo "$apc" | cut -d $ap_fenge -f2)"
-		rtwlt_sta_wisp="$(echo "$apc" | cut -d $ap_fenge -f3)"
-		rtwlt_sta_ssid="$(echo "$apc" | cut -d $ap_fenge -f4)"
-		rtwlt_sta_wpa_psk="$(echo "$apc" | cut -d $ap_fenge -f5)"
-		rtwlt_sta_bssid="$(echo "$apc" | cut -d $ap_fenge -f6 | tr 'A-Z' 'a-z')"
-		if [ "$radio" = "2" ] ; then
-		[ ! -z "$rtwlt_sta_ssid" ] && site_survey="$(echo "$wds_aplist2g" | grep -Eo '[0-9]*[\ ]*'"$rtwlt_sta_ssid".* | tr 'A-Z' 'a-z' | sed -n '1p')"
-		[ ! -z "$rtwlt_sta_bssid" ] && site_survey="$(echo "$wds_aplist2g" | tr 'A-Z' 'a-z' | sed -n "/$rtwlt_sta_bssid/p" | sed -n '1p')"
-		[ ! -z "$rtwlt_sta_ssid" ] && [ ! -z "$rtwlt_sta_bssid" ] && site_survey="$(echo "$wds_aplist2g" | grep -Eo '[0-9]*[\ ]*'"$rtwlt_sta_ssid".* | tr 'A-Z' 'a-z' | sed -n "/$rtwlt_sta_bssid/p" | sed -n '1p')"
-		fi
-		if [ "$radio" = "5" ] ; then
-		[ ! -z "$rtwlt_sta_ssid" ] && site_survey="$(echo "$wds_aplist5g" | grep -Eo '[0-9]*[\ ]*'"$rtwlt_sta_ssid".* | tr 'A-Z' 'a-z' | sed -n '1p')"
-		[ ! -z "$rtwlt_sta_bssid" ] && site_survey="$(echo "$wds_aplist5g" | tr 'A-Z' 'a-z' | sed -n "/$rtwlt_sta_bssid/p" | sed -n '1p')"
-		[ ! -z "$rtwlt_sta_ssid" ] && [ ! -z "$rtwlt_sta_bssid" ] && site_survey="$(echo "$wds_aplist5g" | grep -Eo '[0-9]*[\ ]*'"$rtwlt_sta_ssid".* | tr 'A-Z' 'a-z' | sed -n "/$rtwlt_sta_bssid/p" | sed -n '1p')"
-		fi
-		if [ ! -z "$site_survey" ] ; then
-		ap_ch_ac="$(awk -v a="$aplist_n" -v b="Ch" 'BEGIN{print index(a,b)}')"
-		ap_ch_b="$(echo "$aplist_n" | grep -Eo "Ch *" | sed -n '1p')"
-		ap_ch_bc="$(echo """$ap_ch_b" | wc -c)"
-		ap_ch_bc=`expr $ap_ch_bc - 1`
-		ap_ch_c=`expr $ap_ch_ac + $ap_ch_bc - 1`
-		ap_ssid_ac="$(awk -v a="$aplist_n" -v b="SSID" 'BEGIN{print index(a,b)}')"
-		ap_ssid_b="$(echo "$aplist_n" | grep -Eo "SSID *" | sed -n '1p')"
-		ap_ssid_bc="$(echo """$ap_ssid_b" | wc -c)"
-		ap_ssid_bc=`expr $ap_ssid_bc - 1`
-		ap_ssid_c=`expr $ap_ssid_ac + $ap_ssid_bc - 1`
-		ap_bssid_ac="$(awk -v a="$aplist_n" -v b="BSSID" 'BEGIN{print index(a,b)}')"
-		ap_bssid_b="$(echo "$aplist_n" | grep -Eo "BSSID *" | sed -n '1p')"
-		ap_bssid_bc="$(echo """$ap_bssid_b" | wc -c)"
-		ap_bssid_bc=`expr $ap_bssid_bc - 1`
-		ap_bssid_c=`expr $ap_bssid_ac + $ap_bssid_bc - 1`
-		ap_security_ac="$(awk -v a="$aplist_n" -v b="Security" 'BEGIN{print index(a,b)}')"
-		ap_security_b="$(echo "$aplist_n" | grep -Eo "Security *" | sed -n '1p')"
-		ap_security_bc="$(echo """$ap_security_b" | wc -c)"
-		ap_security_bc=`expr $ap_security_bc - 1`
-		ap_security_c=`expr $ap_security_ac + $ap_security_bc - 1`
-		ap_signal_ac="$(awk -v a="$aplist_n" -v b="Signal" 'BEGIN{print index(a,b)}')"
-		ap_signal_b="Signal(%)"
-		ap_signal_bc="$(echo """$ap_signal_b" | wc -c)"
-		ap_signal_bc=`expr $ap_signal_bc - 1`
-		ap_signal_c=`expr $ap_signal_ac + $ap_signal_bc - 1`
-		ap_wmode_ac="$(awk -v a="$aplist_n" -v b="W-Mode" 'BEGIN{print index(a,b)}')"
-		ap_wmode_b="$(echo "$aplist_n" | grep -Eo "W-Mode *" | sed -n '1p')"
-		ap_wmode_bc="$(echo """$ap_wmode_b" | wc -c)"
-		ap_wmode_bc=`expr $ap_wmode_bc - 1`
-		ap_wmode_c=`expr $ap_wmode_ac + $ap_wmode_bc - 1`
-		Ch="$(echo "$site_survey" | cut -b "$ap_ch_ac-$ap_ch_c")"
-		SSID="$(echo "$site_survey" | cut -b "$ap_ssid_ac-$ap_ssid_c")"
-		BSSID="$(echo "$site_survey" | cut -b "$ap_bssid_ac-$ap_bssid_c")"
-		Security="$(echo "$site_survey" | cut -b "$ap_security_ac-$ap_security_c")"
-		Signal="$(echo "$site_survey" | cut -b "$ap_signal_ac-$ap_signal_c")"
-		WMode="$(echo "$site_survey" | cut -b "$ap_wmode_ac-$ap_wmode_c")"
-		if [ "$radio" = "2" ] ; then
-			radio_x="2g"
-			ap="$(iwconfig $radio2_apcli | grep ESSID: | grep "$rtwlt_sta_ssid" | wc -l)"
-			if [ "$ap" = "0" ] ; then
-			ap="$(iwconfig $radio2_apcli |sed -n '/'$radio2_apcli'/,/Rate/{/'$radio2_apcli'/n;/Rate/b;p}' | tr 'A-Z' 'a-z' | grep $rtwlt_sta_bssid | wc -l)"
-			fi
-		else
-			radio_x="5g"
-			ap="$(iwconfig $radio5_apcli | grep ESSID: | grep "$rtwlt_sta_ssid" | wc -l)"
-			if [ "$ap" = "0" ] ; then
-			ap="$(iwconfig $radio5_apcli |sed -n '/'$radio5_apcli'/,/Rate/{/'$radio5_apcli'/n;/Rate/b;p}' | tr 'A-Z' 'a-z' | grep $rtwlt_sta_bssid | wc -l)"
-			fi
-		fi
-		if [ "$ap" = "1" ] ; then
-		ap3=1
-		fi
-		if [ "$ap" = "0" ] ; then
-		ap3=0
-		fi
-		ap_black=`nvram get ap_black`
-		if [ "$ap_black" = "1" ] ; then
-			apblacktxt=$(grep "【SSID:$rtwlt_sta_bssid" /tmp/apblack.txt)
-			if [ ! -z $apblacktxt ] ; then
-			logger -t "【连接 AP】" "当前是黑名单 $rtwlt_sta_ssid, 跳过黑名单继续搜寻"
-			ap3=1
-			else
-			apblacktxt=$(grep "【SSID:$rtwlt_sta_ssid" /tmp/apblack.txt)
-			if [ ! -z $apblacktxt ] ; then
-			logger -t "【连接 AP】" "当前是黑名单 $rtwlt_sta_ssid, 跳过黑名单继续搜寻"
-			ap3=1
-			fi
-			fi
-		fi
-		if [ "$ap3" != "1" ] ; then
-		if [ "$radio" = "2" ] ; then
-		nvram set rt_channel=$Ch
-		iwpriv $radio2_apcli set Channel=$Ch
-		else
-		nvram set wl_channel=$Ch
-		iwpriv $radio5_apcli set Channel=$Ch
-		fi
-		if [ ! -z "$(echo $Security | grep none)" ] ; then
-		rtwlt_sta_auth_mode="open"
-		rtwlt_sta_wpa_mode="0"
-		fi
-		if [ ! -z "$(echo $Security | grep open)" ] ; then
-		rtwlt_sta_auth_mode="open"
-		rtwlt_sta_wpa_mode="0"
-		fi
-		if [ ! -z "$(echo $Security | grep 1psk)" ] ; then
-		rtwlt_sta_auth_mode="psk"
-		rtwlt_sta_wpa_mode="1"
-		fi
-		if [ ! -z "$(echo $Security | grep wpapsk)" ] ; then
-		rtwlt_sta_auth_mode="psk"
-		rtwlt_sta_wpa_mode="1"
-		fi
-		if [ ! -z "$(echo $Security | grep 2psk)" ] ; then
-		rtwlt_sta_auth_mode="psk"
-		rtwlt_sta_wpa_mode="2"
-		fi
-		if [ ! -z "$(echo $Security | grep tkip)" ] ; then
-		rtwlt_sta_crypto="tkip"
-		fi
-		if [ ! -z "$(echo $Security | grep aes)" ] ; then
-		rtwlt_sta_crypto="aes"
-		fi
-		if [ "$radio" = "2" ] ; then
-		nvram set rt_mode_x="$rtwlt_mode_x"
-		nvram set rt_sta_wisp="$rtwlt_sta_wisp"
-		nvram set rt_sta_ssid="$rtwlt_sta_ssid"
-		nvram set rt_sta_auth_mode="$rtwlt_sta_auth_mode"
-		nvram set rt_sta_wpa_mode="$rtwlt_sta_wpa_mode"
-		nvram set rt_sta_crypto="$rtwlt_sta_crypto"
-		nvram set rt_sta_wpa_psk="$rtwlt_sta_wpa_psk"
-		#强制20MHZ
-		nvram set rt_HT_BW=0
-		nvram commit ; radio2_restart
-		else
-		nvram set wl_mode_x="$rtwlt_mode_x"
-		nvram set wl_sta_wisp="$rtwlt_sta_wisp"
-		nvram set wl_sta_ssid="$rtwlt_sta_ssid"
-		nvram set wl_sta_auth_mode="$rtwlt_sta_auth_mode"
-		nvram set wl_sta_wpa_mode="$rtwlt_sta_wpa_mode"
-		nvram set wl_sta_crypto="$rtwlt_sta_crypto"
-		nvram set wl_sta_wpa_psk="$rtwlt_sta_wpa_psk"
-		nvram commit ; radio5_restart
-		fi
-		logger -t "【连接 AP】" "$rtwlt_mode_x $rtwlt_sta_wisp $rtwlt_sta_ssid $rtwlt_sta_auth_mode $rtwlt_sta_wpa_mode $rtwlt_sta_crypto $rtwlt_sta_wpa_psk"
-		sleep 7
-		logger -t "【连接 AP】" "【Ch:""$(echo $Ch)""】【SSID:""$(echo $SSID)""】【BSSID:""$(echo $BSSID)""】"
-		logger -t "【连接 AP】" "【Security:""$(echo $Security)""】【Signal(%):""$(echo $Signal)""】【WMode:""$(echo $WMode)""】"
-		if [ "$apblack" = "1" ] ; then
-			sleep 7
-			ping_text=`ping -4 223.5.5.5 -c 1 -w 4 -q`
-			ping_time=`echo $ping_text | awk -F '/' '{print $4}'| awk -F '.' '{print $1}'`
-			ping_loss=`echo $ping_text | awk -F ', ' '{print $3}' | awk '{print $1}'`
-			if [ ! -z "$ping_time" ] ; then
-				logger -t "【连接 AP】" "$ap 已连接上 $rtwlt_sta_ssid, 成功联网"
-			else
-				logger -t "【连接 AP】" "$ap 已连接上 $rtwlt_sta_ssid"
-				apblacktxt="$ap AP不联网列入黑名单:【Ch:""$(echo $Ch)""】【SSID:""$(echo $SSID)""】【BSSID:""$(echo $BSSID)""】【Security:""$(echo $Security)""】【Signal(%):""$(echo $Signal)""】【WMode:""$(echo $WMode)""】"
-				logger -t "【连接 AP】" "$apblacktxt"
-				echo $apblacktxt >> /tmp/apblack.txt
-			fi
-		fi
-		rm -f /tmp/apc.lock
-		/etc/storage/ap_script.sh &
-		exit
-		fi
-		fi
-		fi
-		if [ "$ap_rule" = "1" ] ; then
-			rm -f /tmp/apc.lock
-			exit
-		fi
-	done < /tmp/ap2g5g
-fi
-fi
-rm -f /tmp/apc.lock
+#!/bin/sh
+# 连接 AP 的函数，扫描并连接到指定的 2.4G/5G AP
 
+connAPSite() {
+    # 加载配置文件
+    [ -f /etc/storage/ap_script.sh ] || { logger -t "【连接 AP】" "错误：未找到 /etc/storage/ap_script.sh"; exit 1; }
+    . /etc/storage/ap_script.sh
+
+    # 验证依赖
+    command -v iwpriv >/dev/null 2>&1 || { logger -t "【连接 AP】" "错误：未找到 iwpriv 命令"; exit 1; }
+    command -v iwconfig >/dev/null 2>&1 || { logger -t "【连接 AP】" "错误：未找到 iwconfig 命令"; exit 1; }
+    command -v nvram >/dev/null 2>&1 || { logger -t "【连接 AP】" "错误：未找到 nvram 命令"; exit 1; }
+
+    logger -t "【连接 AP】" "10秒后开始扫描 AP"
+    sleep 10
+
+    # 获取配置
+    ap_fenge=$(nvram get ap_fenge || echo '@')
+    radio2_apcli=$(nvram get radio2_apcli || echo "apcli0")
+    radio5_apcli=$(nvram get radio5_apcli || echo "apclii0")
+    ap_rule=$(nvram get ap_rule || echo 0)
+    ap_black=$(nvram get ap_black || echo 0)
+
+    # 过滤有效 AP 配置
+    AP_CONFIG="/tmp/ap2g5g.txt"
+    AP_TEMP="/tmp/ap2g5g"
+    grep -v '^#' "$AP_CONFIG" | grep -v "^$" > "$AP_TEMP"
+    [ ! -s "$AP_TEMP" ] && { logger -t "【连接 AP】" "错误：无有效 AP 配置"; rm -f /tmp/apc.lock; exit 1; }
+
+    # 检查锁文件，避免重复执行
+    [ -f /tmp/apc.lock ] && { logger -t "【连接 AP】" "已有扫描进程运行，退出"; exit 0; }
+    touch /tmp/apc.lock
+
+    # 检查当前连接状态
+    a2=$(iwconfig "$radio2_apcli" 2>/dev/null | awk -F'"' '/ESSID/ {print $2}')
+    a5=$(iwconfig "$radio5_apcli" 2>/dev/null | awk -F'"' '/ESSID/ {print $2}')
+    [ -z "$a2" ] && [ -z "$a5" ] && ap=1 || ap=0
+
+    if [ "$ap" = "1" ] || [ "$1" = "scan" ]; then
+        # 扫描 2.4G AP
+        if grep -q "^2" "$AP_TEMP"; then
+            radio_main=$(nvram get radio2_main || echo "ra0")
+            logger -t "【连接 AP】" "扫描 2.4G AP ($radio_main)"
+            iwpriv "$radio_main" set SiteSurvey=1
+            sleep 2
+            wds_aplist2g=$(iwpriv "$radio_main" get_site_survey)
+            [ -z "$wds_aplist2g" ] && { sleep 3; wds_aplist2g=$(iwpriv "$radio_main" get_site_survey); }
+        fi
+
+        # 扫描 5G AP
+        if grep -q "^5" "$AP_TEMP"; then
+            radio_main=$(nvram get radio5_main || echo "rai0")
+            logger -t "【连接 AP】" "扫描 5G AP ($radio_main)"
+            iwpriv "$radio_main" set SiteSurvey=1
+            sleep 2
+            wds_aplist5g=$(iwpriv "$radio_main" get_site_survey)
+            [ -z "$wds_aplist5g" ] && { sleep 3; wds_aplist5g=$(iwpriv "$radio_main" get_site_survey); }
+        fi
+
+        # 获取 AP 列表头部
+        aplist_n=$(echo "$wds_aplist2g" | sed -n '2p')
+        [ -z "$aplist_n" ] && aplist_n=$(echo "$wds_aplist5g" | sed -n '2p')
+
+        # 处理 AP 配置
+        while IFS= read -r line; do
+            apc=$(echo "$line" | grep -v '^#' | grep -v "^$")
+            [ -z "$apc" ] && continue
+
+            radio=$(echo "$apc" | cut -d "$ap_fenge" -f1)
+            rtwlt_mode_x=$(echo "$apc" | cut -d "$ap_fenge" -f2)
+            rtwlt_sta_wisp=$(echo "$apc" | cut -d "$ap_fenge" -f3)
+            rtwlt_sta_ssid=$(echo "$apc" | cut -d "$ap_fenge" -f4)
+            rtwlt_sta_wpa_psk=$(echo "$apc" | cut -d "$ap_fenge" -f5)
+            rtwlt_sta_bssid=$(echo "$apc" | cut -d "$ap_fenge" -f6 | tr '[:upper:]' '[:lower:]')
+
+            # 根据频段选择扫描结果
+            wds_aplist=$([ "$radio" = "2" ] && echo "$wds_aplist2g" || echo "$wds_aplist5g")
+            radio_apcli=$([ "$radio" = "2" ] && echo "$radio2_apcli" || echo "$radio5_apcli")
+
+            # 查找匹配的 AP
+            site_survey=""
+            if [ -n "$rtwlt_sta_ssid" ] && [ -n "$rtwlt_sta_bssid" ]; then
+                site_survey=$(echo "$wds_aplist" | grep -Ei "[0-9]*[[:space:]]*$rtwlt_sta_ssid.*$rtwlt_sta_bssid" | sed -n '1p')
+            elif [ -n "$rtwlt_sta_ssid" ]; then
+                site_survey=$(echo "$wds_aplist" | grep -Ei "[0-9]*[[:space:]]*$rtwlt_sta_ssid.*" | sed -n '1p')
+            elif [ -n "$rtwlt_sta_bssid" ]; then
+                site_survey=$(echo "$wds_aplist" | grep -i "$rtwlt_sta_bssid" | sed -n '1p')
+            fi
+
+            # 如果 ap_rule=1，按信号强度排序
+            if [ "$ap_rule" = "1" ]; then
+                strongest_ap=""
+                strongest_signal=0
+                while IFS= read -r survey_line; do
+                    signal=$(echo "$survey_line" | grep -o 'Signal([0-9]\+%)' | grep -o '[0-9]\+')
+                    [ -n "$signal" ] && [ "$signal" -gt "$strongest_signal" ] && {
+                        strongest_signal=$signal
+                        strongest_ap=$survey_line
+                    }
+                done < <(echo "$wds_aplist" | grep -v '^#')
+                [ -n "$strongest_ap" ] && site_survey="$strongest_ap"
+            fi
+
+            # 检查黑名单
+            if [ "$ap_black" = "1" ] && [ -n "$rtwlt_sta_ssid" ]; then
+                if grep -q "SSID:$rtwlt_sta_ssid" /tmp/apblack.txt || \
+                   [ -n "$rtwlt_sta_bssid" ] && grep -q "BSSID:$rtwlt_sta_bssid" /tmp/apblack.txt; then
+                    logger -t "【连接 AP】" "跳过黑名单 AP: $rtwlt_sta_ssid"
+                    continue
+                fi
+            fi
+
+            if [ -n "$site_survey" ]; then
+                # 解析扫描结果
+                ap_ch_ac=$(awk -v a="$aplist_n" -v b="Ch" 'BEGIN{print index(a,b)}')
+                ap_ssid_ac=$(awk -v a="$aplist_n" -v b="SSID" 'BEGIN{print index(a,b)}')
+                ap_bssid_ac=$(awk -v a="$aplist_n" -v b="BSSID" 'BEGIN{print index(a,b)}')
+                ap_security_ac=$(awk -v a="$aplist_n" -v b="Security" 'BEGIN{print index(a,b)}')
+                ap_signal_ac=$(awk -v a="$aplist_n" -v b="Signal" 'BEGIN{print index(a,b)}')
+                ap_wmode_ac=$(awk -v a="$aplist_n" -v b="W-Mode" 'BEGIN{print index(a,b)}')
+
+                Ch=$(echo "$site_survey" | awk -v s="$ap_ch_ac" '{print substr($0,s,3)}' | tr -d '[:space:]')
+                SSID=$(echo "$site_survey" | awk -v s="$ap_ssid_ac" '{print substr($0,s,32)}' | tr -d '[:space:]')
+                BSSID=$(echo "$site_survey" | awk -v s="$ap_bssid_ac" '{print substr($0,s,17)}' | tr '[:upper:]' '[:lower:]')
+                Security=$(echo "$site_survey" | awk -v s="$ap_security_ac" '{print substr($0,s,20)}' | tr -d '[:space:]')
+                Signal=$(echo "$site_survey" | awk -v s="$ap_signal_ac" '{print substr($0,s,10)}' | tr -d '[:space:]')
+                WMode=$(echo "$site_survey" | awk -v s="$ap_wmode_ac" '{print substr($0,s,10)}' | tr -d '[:space:]')
+
+                # 检查是否已连接
+                ap=0
+                if [ "$radio" = "2" ]; then
+                    [ "$(iwconfig "$radio2_apcli" | grep -c "ESSID:.*$rtwlt_sta_ssid")" -gt 0 ] && ap=1
+                    [ "$ap" = "0" ] && [ -n "$rtwlt_sta_bssid" ] && \
+                        [ "$(iwconfig "$radio2_apcli" | grep -i "$rtwlt_sta_bssid" | wc -l)" -gt 0 ] && ap=1
+                else
+                    [ "$(iwconfig "$radio5_apcli" | grep -c "ESSID:.*$rtwlt_sta_ssid")" -gt 0 ] && ap=1
+                    [ "$ap" = "0" ] && [ -n "$rtwlt_sta_bssid" ] && \
+                        [ "$(iwconfig "$radio5_apcli" | grep -i "$rtwlt_sta_bssid" | wc -l)" -gt 0 ] && ap=1
+                fi
+
+                [ "$ap" = "1" ] && { logger -t "【连接 AP】" "已连接到 $rtwlt_sta_ssid"; rm -f /tmp/apc.lock; exit 0; }
+
+                # 配置无线参数
+                rtwlt_sta_auth_mode="open"
+                rtwlt_sta_wpa_mode="0"
+                rtwlt_sta_crypto=""
+                case "$Security" in
+                    *none*|*open*) rtwlt_sta_auth_mode="open"; rtwlt_sta_wpa_mode="0";;
+                    *1psk*|*wpapsk*) rtwlt_sta_auth_mode="psk"; rtwlt_sta_wpa_mode="1";;
+                    *2psk*) rtwlt_sta_auth_mode="psk"; rtwlt_sta_wpa_mode="2";;
+                    *tkip*) rtwlt_sta_crypto="tkip";;
+                    *aes*) rtwlt_sta_crypto="aes";;
+                esac
+
+                if [ "$radio" = "2" ]; then
+                    nvram set rt_channel="$Ch"
+                    iwpriv "$radio2_apcli" set Channel="$Ch"
+                    nvram set rt_mode_x="$rtwlt_mode_x"
+                    nvram set rt_sta_wisp="$rtwlt_sta_wisp"
+                    nvram set rt_sta_ssid="$rtwlt_sta_ssid"
+                    nvram set rt_sta_auth_mode="$rtwlt_sta_auth_mode"
+                    nvram set rt_sta_wpa_mode="$rtwlt_sta_wpa_mode"
+                    [ -n "$rtwlt_sta_crypto" ] && nvram set rt_sta_crypto="$rtwlt_sta_crypto"
+                    nvram set rt_sta_wpa_psk="$rtwlt_sta_wpa_psk"
+                    nvram set rt_HT_BW=0
+                    nvram commit
+                    command -v radio2_restart >/dev/null 2>&1 && radio2_restart || logger -t "【连接 AP】" "警告：radio2_restart 未定义"
+                else
+                    nvram set wl_channel="$Ch"
+                    iwpriv "$radio5_apcli" set Channel="$Ch"
+                    nvram set wl_mode_x="$rtwlt_mode_x"
+                    nvram set wl_sta_wisp="$rtwlt_sta_wisp"
+                    nvram set wl_sta_ssid="$rtwlt_sta_ssid"
+                    nvram set wl_sta_auth_mode="$rtwlt_sta_auth_mode"
+                    nvram set wl_sta_wpa_mode="$rtwlt_sta_wpa_mode"
+                    [ -n "$rtwlt_sta_crypto" ] && nvram set wl_sta_crypto="$rtwlt_sta_crypto"
+                    nvram set wl_sta_wpa_psk="$rtwlt_sta_wpa_psk"
+                    nvram commit
+                    command -v radio5_restart >/dev/null 2>&1 && radio5_restart || logger -t "【连接 AP】" "警告：radio5_restart 未定义"
+                fi
+
+                logger -t "【连接 AP】" "配置: Mode=$rtwlt_mode_x, WISP=$rtwlt_sta_wisp, SSID=$rtwlt_sta_ssid, Auth=$rtwlt_sta_auth_mode, WPA=$rtwlt_sta_wpa_mode, Crypto=$rtwlt_sta_crypto"
+                logger -t "【连接 AP】" "AP信息: Ch=$Ch, SSID=$SSID, BSSID=$BSSID, Security=$Security, Signal=$Signal, WMode=$WMode"
+
+                # 检查连接结果
+                sleep 7
+                if [ "$ap_black" = "1" ]; then
+                    ping_text=$(ping -4 223.5.5.5 -c 1 -w 4 -q 2>/dev/null)
+                    ping_loss=$(echo "$ping_text" | awk -F ', ' '{print $3}' | awk '{print $1}')
+                    if [ -n "$ping_text" ] && [ "$ping_loss" != "100%" ]; then
+                        logger -t "【连接 AP】" "成功连接 $rtwlt_sta_ssid 并联网"
+                    else
+                        logger -t "【连接 AP】" "连接 $rtwlt_sta_ssid 失败，加入黑名单"
+                        echo "AP不联网列入黑名单:【Ch:$Ch】【SSID:$SSID】【BSSID:$BSSID】【Security:$Security】【Signal:$Signal】【WMode:$WMode】" >> /tmp/apblack.txt
+                        continue
+                    fi
+                fi
+
+                rm -f /tmp/apc.lock
+                /etc/storage/ap_script.sh &
+                exit 0
+            fi
+            [ "$ap_rule" = "1" ] && break
+        done < "$AP_TEMP"
+    fi
+    rm -f /tmp/apc.lock
 }
 
+# 主脚本入口
 case "$1" in
-1)
-  button_1
-  ;;
-2)
-  button_2
-  ;;
-3)
-  button_3
-  ;;
-timesystem)
-  timesystem
-  ;;
-serverchan)
-  serverchan
-  ;;
-serverchan_clean)
-  serverchan_clean
-  ;;
-relnmp)
-  relnmp
-  ;;
-mkfs)
-  mkfs
-  ;;
-reszUID)
-  reszUID
-  ;;
-getAPSite2g)
-  getAPSite "2g"
-  ;;
-getAPSite5g)
-  getAPSite "5g"
-  ;;
-connAPSite)
-  connAPSite
-  ;;
-connAPSite_scan)
-  connAPSite "scan"
-  ;;
+    connAPSite)
+        connAPSite
+        ;;
+    connAPSite_scan)
+        connAPSite "scan"
+        ;;
+    *)
+        logger -t "【脚本】" "未知参数: $1"
+        exit 1
+        ;;
 esac
-
